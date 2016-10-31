@@ -6,6 +6,7 @@
 #include <map>
 #include <iostream>
 #include <random>
+#include <memory>
 
 class Word;
 
