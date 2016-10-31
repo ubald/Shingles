@@ -83,7 +83,7 @@ std::vector<std::string> parseText(std::string text) {
 int main() {
 
     std::cout << "Loading text..." << std::endl;
-    const std::string &text = loadFile("books/test.txt");
+    const std::string &text = loadFile("input.txt");
     if (text.empty()) {
         std::cerr << "Nothing to parse." << std::endl;
         exit(1);
