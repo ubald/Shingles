@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <string>
+#include <regex>
 #include <vector>
 #include <iostream>
 #include <map>
@@ -15,7 +16,7 @@ public:
     Dictionary(unsigned long n = 3);
     void ingest(const std::string& sentence, bool doUpdateProbabilities = false);
     void updateProbabilities();
-    std::string generate();
+    std::string generate(std::string seed = "");
     std::string toString();
 
 private:

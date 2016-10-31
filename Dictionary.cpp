@@ -59,8 +59,19 @@ std::string Dictionary::toString() {
     return ss.str();
 }
 
-std::string Dictionary::generate() {
+std::string Dictionary::generate(std::string seed) {
     std::vector<const Word *> sentence{beginWord.get()};
+
+    if (!seed.empty()) {
+        std::vector<std::string> seedStrings = split(seed, ' ');
+        for(auto s:seedStrings) {
+            auto search = words.find(s);
+            if (search != words.end()) {
+                sentence.push_back(search->second.get());
+            }
+        }
+    }
+
     const Word *word = nullptr;
     do {
         // Try to find n-gram first then (n-1)-gram etc... until we find something
@@ -84,5 +95,9 @@ std::string Dictionary::generate() {
     for (auto w:sentence) {
         sentenceText += w->getText() + " ";
     }
+
+    // Make punctuation back into actual punctuation
+    sentenceText = std::regex_replace(sentenceText, std::regex(" ([.,:;!?])"), "$1");
+
     return sentenceText;
 }

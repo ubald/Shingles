@@ -34,6 +34,9 @@ std::vector<std::string> parseText(std::string text) {
     std::regex paragraph_re("[\r\n]");
     textBuffer = std::regex_replace(textBuffer, paragraph_re, " ");
 
+    // Make punctuation actual words
+    textBuffer = std::regex_replace(textBuffer, std::regex("([.,:;!?])"), " $1 ");
+
     // Remove double spaces
     std::regex doubleSpace_re("  ");
     while (textBuffer.find("  ") != std::string::npos) {
@@ -59,6 +62,9 @@ std::vector<std::string> parseText(std::string text) {
         std::regex subSentence_re(marker.first + "(.+?)" + marker.second);
         textBuffer = std::regex_replace(textBuffer, subSentence_re, "\n$1\n");
     }
+
+    // To lowercase
+    std::transform(textBuffer.begin(), textBuffer.end(), textBuffer.begin(), ::tolower);
 
     std::vector<std::string> sentences;
     std::stringstream ss;
@@ -95,7 +101,7 @@ int main() {
     std::cout << "Updating probabilities..." << std::endl;
     dictionary->updateProbabilities();
 
-    //std::cout << dictionary->toString() << std::endl;
+    std::cout << dictionary->toString() << std::endl;
 
     std::cout << "Done!" << std::endl << std::endl;
     std::cout << "Press any key to generate a sentence..." << std::endl;
@@ -103,7 +109,12 @@ int main() {
     std::string input;
     while (true) {
         std::getline(std::cin, input);
-        std::cout << dictionary->generate() << std::endl;
+
+        if (input == "exit") {
+            break;
+        }
+
+        std::cout << dictionary->generate(input) << std::endl;
     }
     return 0;
 }
