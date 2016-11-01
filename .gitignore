@@ -1,4 +1,6 @@
 *.swp
+input.txt
+output.txt
 .idea/workspace.xml
 books/
 build/
