@@ -7,6 +7,7 @@
 #include <iostream>
 #include <random>
 #include <memory>
+#include <stack>
 
 class Word;
 
@@ -17,7 +18,7 @@ public:
     void computeProbability(unsigned long total);
 
     using candidates_t = std::vector<std::map<unsigned long, std::pair<unsigned long, const Word *>>>;
-    Gram* next(const std::vector<const Word *> &sentence, unsigned long position) const;
+    Gram* next(const std::vector<const Word *> &sentence, unsigned long position, const std::stack<const Word*> &markerStack) const;
 
     const Word* getWord() const;
     const unsigned long getCount() const;

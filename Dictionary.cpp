@@ -1,7 +1,12 @@
 #include "Dictionary.hpp"
 
 Dictionary::Dictionary(unsigned long n) : n(n) {
-
+    beginSentence->setAsBeginMarker(endSentence.get());
+    endSentence->setAsEndMarker(beginSentence.get());
+    beginQuote->setAsBeginMarker(endQuote.get());
+    endQuote->setAsEndMarker(beginQuote.get());
+    beginParens->setAsBeginMarker(endParens.get());
+    endParens->setAsEndMarker(beginParens.get());
 }
 
 void Dictionary::ingest(const std::string &sentence, bool doUpdateProbabilities) {
@@ -11,23 +16,24 @@ void Dictionary::ingest(const std::string &sentence, bool doUpdateProbabilities)
 
     // Words
     std::vector<Word *> sentenceWords;
-    sentenceWords.push_back(beginWord.get());
+    sentenceWords.push_back(beginSentence.get());
     for (auto sentenceWordString:sentenceWordStrings) {
-        auto search = words.find(sentenceWordString);
-        if (search == words.end()) {
+        auto search = wordMap.find(sentenceWordString);
+        if (search == wordMap.end()) {
             unsigned long id = idCounter++;
             std::unique_ptr<Word> word = std::make_unique<Word>(id, sentenceWordString);
             sentenceWords.push_back(word.get());
-            words[sentenceWordString] = std::move(word);
+            wordMap[sentenceWordString] = word.get();
+            learnedWords.push_back(std::move(word));
         } else {
-            sentenceWords.push_back(search->second.get());
+            sentenceWords.push_back(search->second);
         }
     }
-    sentenceWords.push_back(endWord.get());
+    sentenceWords.push_back(endSentence.get());
 
     // Forget possible empty sentences
     if (sentenceWords.size() > 2) {
-        // Do not loop to endWord, not necessary
+        // Do not loop to endSentence, not necessary
         for (unsigned long i = 0; i < sentenceWords.size(); ++i) {
             sentenceWords[i]->updateGraph(sentenceWords, i, n);
         }
@@ -40,64 +46,100 @@ void Dictionary::ingest(const std::string &sentence, bool doUpdateProbabilities)
 }
 
 void Dictionary::updateProbabilities() {
-    unsigned long count = beginWord->getGram()->getCount();
-    for (auto &word:words) {
-        count += word.second->getGram()->getCount();
+    unsigned long count = 0;//beginSentence->getGram()->getCount();
+    for (auto &word:learnedWords) {
+        count += word->getGram()->getCount();
     }
-    beginWord->updateProbabilities(count);
-    for (auto &word:words) {
-        word.second->updateProbabilities(count);
+    beginSentence->updateProbabilities(count);
+    for (auto &word:learnedWords) {
+        word->updateProbabilities(count);
     }
 }
 
 std::string Dictionary::toString() {
     std::stringstream ss;
-    ss << beginWord->toString();
-    for (auto &word:words) {
-        ss << word.second->toString();
+    ss << beginSentence->toString();
+    for (auto &word:learnedWords) {
+        ss << word->toString();
     }
     return ss.str();
 }
 
 std::string Dictionary::generate(std::string seed) {
-    std::vector<const Word *> sentence{beginWord.get()};
+    // Stack of markers to complete before ending the sentence
+    std::stack<const Word*> markerStack{};
 
+    // Sentence, started by beginSentence marker
+    std::vector<const Word *> sentence{beginSentence.get()};
+
+    // Pre seed
     if (!seed.empty()) {
         std::vector<std::string> seedStrings = split(seed, ' ');
         for(auto s:seedStrings) {
-            auto search = words.find(s);
-            if (search != words.end()) {
-                sentence.push_back(search->second.get());
+            auto search = wordMap.find(s);
+            if (search != wordMap.end()) {
+                sentence.push_back(search->second);
             }
         }
     }
 
-    const Word *word = nullptr;
-    do {
-        // Try to find n-gram first then (n-1)-gram etc... until we find something
-        const Word *newWord = nullptr;
-        unsigned long start = sentence.size() > n ? sentence.size() - n : 0;
-        for(unsigned long i = start; i < sentence.size(); ++i) {
-            const Word* w = sentence[i]->next(sentence, i + 1);
-            if ( w != nullptr ) {
-                newWord = w;
+    // Add current sentence markers to the stack
+    for (auto &word:sentence) {
+        if (word->isBeginMarker()) {
+            markerStack.push(word);
+        }
+    }
+
+    const Word *lastWord = nullptr;
+    while (markerStack.size() > 0) {
+        int nullCount = 0;
+        do {
+            // Try to find n-gram first then (n-1)-gram etc... until we find something
+            const Word *newWord = nullptr;
+            unsigned long start = sentence.size() > n ? sentence.size() - n : 0;
+            for (unsigned long i = start; i < sentence.size(); ++i) {
+                const Word *w = sentence[i]->next(sentence, i + 1, markerStack);
+                if (w != nullptr) {
+                    newWord = w;
+                    break;
+                }
+            }
+
+            if (newWord) {
+                sentence.push_back(newWord);
+                // If found word is a marker add it to the marker stack
+                if (newWord->isBeginMarker()) {
+                    markerStack.push(newWord);
+                }
+            } else {
+                ++nullCount;
+            }
+
+            if ( nullCount > 10 ) {
+                std::cerr << "No end in sight! Stack:" << markerStack.top()->getText() << std::endl;
                 break;
             }
-        }
 
-        if ( newWord ) {
-            sentence.push_back(newWord);
-        }
-        word = newWord;
-    } while ( word != nullptr && word->getId() != endWord->getId());
+            lastWord = newWord;
 
-    std::string sentenceText = "";
-    for (auto w:sentence) {
-        sentenceText += w->getText() + " ";
+        } while (lastWord == nullptr || lastWord->getId() != markerStack.top()->getEndMarker()->getId());
+
+        markerStack.pop();
     }
+
+    std::string sentenceText("");
+    for (auto w:sentence) {
+        if ( !w->getText().empty() ) {
+            sentenceText += w->getText() + " ";
+        }
+    }
+    std::transform(sentenceText.begin(), sentenceText.begin() + 1, sentenceText.begin(), ::toupper);
 
     // Make punctuation back into actual punctuation
     sentenceText = std::regex_replace(sentenceText, std::regex(" ([.,:;!?])"), "$1");
+    sentenceText = std::regex_replace(sentenceText, std::regex(" ([']) "), "$1");
+    sentenceText = std::regex_replace(sentenceText, std::regex("\" (.+?) \""), "\"$1\"");
+    sentenceText = std::regex_replace(sentenceText, std::regex("\\( (.+?) \\)"), "\\($1\\)");
 
     return sentenceText;
 }

@@ -9,6 +9,36 @@ unsigned long Word::getId() const {
     return id;
 }
 
+bool Word::isMarker() const {
+    return beginMarker != nullptr || endMarker != nullptr;
+}
+
+bool Word::isBeginMarker() const {
+    return endMarker != nullptr ;
+}
+
+bool Word::isEndMarker() const {
+    return beginMarker != nullptr;
+}
+
+const Word* Word::getBeginMarker() const {
+    return beginMarker;
+}
+
+void Word::setAsBeginMarker(const Word *end) {
+    endMarker = end;
+    beginMarker = nullptr;
+}
+
+const Word* Word::getEndMarker() const {
+    return endMarker;
+}
+
+void Word::setAsEndMarker(const Word* begin) {
+    beginMarker = begin;
+    endMarker = nullptr;
+}
+
 const std::string Word::getText() const {
     return text;
 }
@@ -31,7 +61,7 @@ void Word::updateProbabilities(unsigned long wordCount) {
     gram.computeProbability(wordCount);
 }
 
-const Word *Word::next(const std::vector<const Word *> &sentence, unsigned long position) const {
-    Gram *g = gram.next(sentence, position);
+const Word *Word::next(const std::vector<const Word *> &sentence, unsigned long position, const std::stack<const Word*> &markerStack) const {
+    Gram *g = gram.next(sentence, position, markerStack);
     return g ? g->getWord() : nullptr;
 }

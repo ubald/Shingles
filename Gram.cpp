@@ -19,7 +19,7 @@ const double Gram::getProbability() const {
 
 const std::string Gram::toString() const {
     std::stringstream ss;
-    ss << std::string(depth * 4, ' ') << word->getText() << "(" << count << "-" << probability << ")" << std::endl;
+    ss << std::string(depth * 4, ' ') << word->getId() << ":" << word->getText() << " (" << count << "-" << probability << ")" << std::endl;
     for (auto &gram:grams) {
         ss << gram.second->toString();
     }
@@ -61,17 +61,15 @@ void Gram::computeProbability(unsigned long total) {
     }
 }
 
-Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long position) const {
-    if ( position < sentence.size()  ) {
+Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long position,
+                 const std::stack<const Word *> &markerStack) const {
+
+    Gram *nextGram = nullptr;
+
+    if (position < sentence.size()) {
         auto search = grams.find(sentence[position]->getId());
         if (search != grams.end()) {
-            if (position < sentence.size()) {
-                return search->second->next(sentence, position + 1);
-            } else {
-                return search->second.get();
-            }
-        } else {
-            return nullptr;
+            nextGram = search->second->next(sentence, position + 1, markerStack);
         }
     } else {
         std::random_device rd;
@@ -81,12 +79,22 @@ Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long positi
         double probabilities = 0;
         for (auto &gram:grams) {
             double probability = gram.second->getProbability();
-            if ( probabilities < rnd && rnd <= (probabilities + probability)) {
-                return gram.second.get();
+            if (probabilities < rnd && rnd <= (probabilities + probability)) {
+                nextGram = gram.second.get();
+                break;
             }
             probabilities += probability;
         }
     }
 
-    return nullptr;
+    if (nextGram != nullptr && nextGram->word->isMarker()) {
+        if (nextGram->word->isBeginMarker() && nextGram->word->getId() == markerStack.top()->getId()) {
+            nextGram = nullptr;
+
+        } else if (nextGram->word->isEndMarker() && nextGram->word->getBeginMarker()->getId() != markerStack.top()->getId() ) {
+            nextGram = nullptr;
+        }
+    }
+
+    return nextGram;
 }
