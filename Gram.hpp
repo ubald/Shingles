@@ -8,6 +8,7 @@
 #include <random>
 #include <memory>
 #include <stack>
+#include <json/json.h>
 
 class Word;
 
@@ -24,6 +25,7 @@ public:
     const unsigned long getCount() const;
     const double getProbability() const;
     const std::string toString() const;
+    const Json::Value toJson() const;
 
 private:
     unsigned long weight{0};

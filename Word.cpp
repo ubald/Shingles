@@ -1,7 +1,13 @@
 #include <iostream>
 #include "Word.hpp"
 
-Word::Word(unsigned long id, const std::string text) : id(id), text(text), gram(this) {
+Word::Word(unsigned long id, const std::string text) : id(id), inputText(text), outputText(text), gram(this) {
+
+}
+
+Word::Word(unsigned long id, const std::string inputText, const std::string outputText) : id(id),
+                                                                                          inputText(inputText),
+                                                                                          outputText(outputText), gram(this) {
 
 }
 
@@ -39,8 +45,12 @@ void Word::setAsEndMarker(const Word* begin) {
     endMarker = nullptr;
 }
 
-const std::string Word::getText() const {
-    return text;
+const std::string Word::getInputText() const {
+    return inputText;
+}
+
+const std::string Word::getOutputText() const {
+    return outputText;
 }
 
 const Gram* Word::getGram() const {
@@ -51,6 +61,15 @@ const std::string Word::toString() const {
     std::stringstream ss;
     ss << gram.toString();
     return ss.str();
+}
+
+const Json::Value Word::toJson() const {
+    Json::Value wordJson;
+    wordJson["id"] = static_cast<Json::UInt64>(id);
+    wordJson["input"] = inputText;
+    wordJson["output"] = outputText;
+    wordJson["gram"] = gram.toJson();
+    return wordJson;
 }
 
 void Word::updateGraph(const std::vector<Word *> &sentence, unsigned long position, unsigned long n) {

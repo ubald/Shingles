@@ -1,3 +1,5 @@
+#include <json/json.h>
+#include <fstream>
 #include "Dictionary.hpp"
 
 Dictionary::Dictionary(unsigned long n) : n(n) {
@@ -7,6 +9,27 @@ Dictionary::Dictionary(unsigned long n) : n(n) {
     endQuote->setAsEndMarker(beginQuote.get());
     beginParens->setAsBeginMarker(endParens.get());
     endParens->setAsEndMarker(beginParens.get());
+}
+
+void Dictionary::save(const std::string &path) const {
+    Json::Value root;
+    //for (auto &word:learnedWords) {
+    //    root["words"][word->getOutputText()] = static_cast<Json::UInt64>(word->getId());//.append(jsonWord);
+    //}
+
+    root["words"] = Json::Value(Json::arrayValue);
+    for(auto &word:wordMap) {
+        root["words"].append( word.second->toJson() );
+    }
+
+    Json::StreamWriterBuilder builder;
+    builder["commentStyle"] = "None";
+    builder["indentation"] = "\t"; // Keep the file as small as possible
+    builder["enableYAMLCompatibility"] = true;
+
+    std::unique_ptr<Json::StreamWriter> writer(builder.newStreamWriter());
+    std::ofstream output(path);
+    writer->write(root, &output);
 }
 
 void Dictionary::ingest(const std::string &sentence, bool doUpdateProbabilities) {
@@ -40,7 +63,7 @@ void Dictionary::ingest(const std::string &sentence, bool doUpdateProbabilities)
     }
 
     // Update probabilities
-    if ( doUpdateProbabilities ) {
+    if (doUpdateProbabilities) {
         updateProbabilities();
     }
 }
@@ -67,7 +90,7 @@ std::string Dictionary::toString() {
 
 std::string Dictionary::generate(std::string seed) {
     // Stack of markers to complete before ending the sentence
-    std::stack<const Word*> markerStack{};
+    std::stack<const Word *> markerStack{};
 
     // Sentence, started by beginSentence marker
     std::vector<const Word *> sentence{beginSentence.get()};
@@ -75,7 +98,7 @@ std::string Dictionary::generate(std::string seed) {
     // Pre seed
     if (!seed.empty()) {
         std::vector<std::string> seedStrings = split(seed, ' ');
-        for(auto s:seedStrings) {
+        for (auto s:seedStrings) {
             auto search = wordMap.find(s);
             if (search != wordMap.end()) {
                 sentence.push_back(search->second);
@@ -115,8 +138,10 @@ std::string Dictionary::generate(std::string seed) {
                 ++nullCount;
             }
 
-            if ( nullCount > 10 ) {
-                std::cerr << "No end in sight! Stack:" << markerStack.top()->getText() << std::endl;
+            //TODO: Separate filling a sentence/marker and finding a new word
+            //TODO: Back off one word if we can't seem to find
+            if (nullCount > 100) {
+                std::cerr << "\nNo end in sight! Stack:" << markerStack.top()->getOutputText() << std::endl;
                 break;
             }
 
@@ -129,8 +154,8 @@ std::string Dictionary::generate(std::string seed) {
 
     std::string sentenceText("");
     for (auto w:sentence) {
-        if ( !w->getText().empty() ) {
-            sentenceText += w->getText() + " ";
+        if (!w->getOutputText().empty()) {
+            sentenceText += w->getOutputText() + " ";
         }
     }
     std::transform(sentenceText.begin(), sentenceText.begin() + 1, sentenceText.begin(), ::toupper);

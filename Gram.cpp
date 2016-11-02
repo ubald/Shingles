@@ -19,11 +19,23 @@ const double Gram::getProbability() const {
 
 const std::string Gram::toString() const {
     std::stringstream ss;
-    ss << std::string(depth * 4, ' ') << word->getId() << ":" << word->getText() << " (" << count << "-" << probability << ")" << std::endl;
+    ss << std::string(depth * 4, ' ') << word->getId() << ":" << word->getOutputText() << " (" << count << "-" << probability << ")" << std::endl;
     for (auto &gram:grams) {
         ss << gram.second->toString();
     }
     return ss.str();
+}
+
+const Json::Value Gram::toJson() const {
+    Json::Value gramJson;
+    gramJson["word"] = static_cast<Json::UInt64>(word->getId());
+    gramJson["count"] = static_cast<Json::UInt64>(count);
+    //gramJson["probability"] = probability;
+    gramJson["grams"] = Json::Value(Json::arrayValue);
+    for (auto &gram:grams) {
+        gramJson["grams"].append(gram.second->toJson()) ;
+    }
+    return gramJson;
 }
 
 void Gram::update(const std::vector<Word *> &sentence, unsigned long position, unsigned long n) {

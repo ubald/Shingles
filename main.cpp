@@ -6,7 +6,7 @@ std::string loadFile(std::string path) {
     std::string text;
 
     {
-        std::ifstream file(path);
+        std::ifstream file(path, std::ios::binary);
         if (!file) {
             std::cerr << "File not found!" << std::endl;
         } else {
@@ -23,7 +23,7 @@ std::string loadFile(std::string path) {
 
 int main() {
 
-    std::cout << "Loading text..." << std::endl;
+    std::cout << "Loading outputText..." << std::endl;
     const std::string &text = loadFile("input.txt");
     if (text.empty()) {
         std::cerr << "Nothing to parse." << std::endl;
@@ -41,7 +41,7 @@ int main() {
     }
 
     std::cout << "Ingesting sentences..." << std::endl;
-    std::unique_ptr<Dictionary> dictionary = std::make_unique<Dictionary>(4);
+    std::unique_ptr<Dictionary> dictionary = std::make_unique<Dictionary>(3);
     for (auto sentence: sentences) {
         dictionary->ingest(sentence);
     }
@@ -49,6 +49,8 @@ int main() {
     std::cout << "Updating probabilities..." << std::endl;
     dictionary->updateProbabilities();
 
+    std::cout << "Saving dictionary..." << std::endl;
+    dictionary->save("dictionary.json");
     //std::cout << dictionary->toString() << std::endl;
 
     std::cout << "Done!" << std::endl << std::endl;

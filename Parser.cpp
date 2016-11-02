@@ -3,9 +3,12 @@
 std::vector<std::string> Parser::parse(const std::string text) {
     std::string textBuffer = text;
 
+    // Remove crap
+    textBuffer = std::regex_replace(textBuffer, std::regex("[\\x00-\\x1F]"), " ");
+
     // Remove extra paragraphs
-    std::regex paragraph_re("[\r\n]");
-    textBuffer = std::regex_replace(textBuffer, paragraph_re, " ");
+    //std::regex paragraph_re("[\r\n]");
+    //textBuffer = std::regex_replace(textBuffer, paragraph_re, " ");
 
     // Make punctuation actual words
     textBuffer = std::regex_replace(textBuffer, std::regex("\\.\\.\\."), " … ");
@@ -17,14 +20,17 @@ std::vector<std::string> Parser::parse(const std::string text) {
         textBuffer = std::regex_replace(textBuffer, doubleSpace_re, " ");
     }
 
-    // Extract sentences
-    std::regex sentence_re("([\\.\\!\\?]) ([^\'\"])");
-    textBuffer = std::regex_replace(textBuffer, sentence_re, "$1\n$2");
+
+
+    // Before starting to add markers, start by removing anything resembling one
+    textBuffer = std::regex_replace(textBuffer, std::regex("<(.+?)>"), "($1)");
+    textBuffer = std::regex_replace(textBuffer, std::regex("[<>]"), " ");
 
     // Extract quotes
     std::vector<std::pair<std::string,std::string>> quoteMarkerPairs{
         std::make_pair("\"", "\""),
         std::make_pair("“", "”"),
+        std::make_pair("‘", "’"),
         std::make_pair("«", "»")
     };
     for ( auto marker : quoteMarkerPairs ) {
@@ -40,6 +46,20 @@ std::vector<std::string> Parser::parse(const std::string text) {
     for ( auto marker : parensMarkerPairs ) {
         textBuffer = std::regex_replace(textBuffer, std::regex((marker.first + "(.+?)" + marker.second)), "<p> $1 </p>");
     }
+
+    // Remove stray markers
+    std::string strayMarkers = "";
+    for ( auto marker : quoteMarkerPairs ) {
+        strayMarkers += marker.first + marker.second;
+    }
+    for ( auto marker : parensMarkerPairs ) {
+        strayMarkers += marker.first + marker.second;
+    }
+    textBuffer = std::regex_replace(textBuffer, std::regex("[" + strayMarkers + "]"), " ");
+
+    // Extract sentences
+    std::regex sentence_re("([\\.\\!\\?]) ((?!<\\/))");
+    textBuffer = std::regex_replace(textBuffer, sentence_re, "$1\n$2");
 
     // To lowercase
     std::transform(textBuffer.begin(), textBuffer.end(), textBuffer.begin(), ::tolower);

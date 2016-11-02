@@ -6,16 +6,20 @@
 #include <string>
 #include <vector>
 #include <stack>
+#include <json/json.h>
 #include "Gram.hpp"
 
 class Word {
 public:
     Word() = delete;
     Word(unsigned long id, const std::string text);
+    Word(unsigned long id, const std::string inputText, const std::string outputText);
     unsigned long getId() const;
-    const std::string getText() const;
+    const std::string getInputText() const;
+    const std::string getOutputText() const;
     const Gram* getGram() const;
     const std::string toString() const;
+    const Json::Value toJson() const;
 
 
     bool isMarker() const;
@@ -33,7 +37,8 @@ private:
     unsigned long id;
     const Word* beginMarker{};
     const Word* endMarker{};
-    std::string text;
+    std::string inputText;
+    std::string outputText;
     Gram gram;
 };
 
