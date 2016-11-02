@@ -4,7 +4,7 @@ std::vector<std::string> Parser::parse(const std::string text) {
     std::string textBuffer = text;
 
     // Remove crap
-    textBuffer = std::regex_replace(textBuffer, std::regex("[\\x00-\\x1F]"), " ");
+    textBuffer = std::regex_replace(textBuffer, std::regex("[\\x00-\\x1F_]"), " ");
 
     // Remove extra paragraphs
     //std::regex paragraph_re("[\r\n]");

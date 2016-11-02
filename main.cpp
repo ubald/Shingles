@@ -23,7 +23,7 @@ std::string loadFile(std::string path) {
 
 int main() {
 
-    std::cout << "Loading outputText..." << std::endl;
+    std::cout << "Loading text..." << std::endl;
     const std::string &text = loadFile("input.txt");
     if (text.empty()) {
         std::cerr << "Nothing to parse." << std::endl;
