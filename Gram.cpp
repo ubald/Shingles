@@ -1,5 +1,6 @@
 #include "Gram.hpp"
 #include "Word.hpp"
+#include "utils/color.hpp"
 
 Gram::Gram(const Word *word, unsigned int depth) : word(word), depth(depth) {
 
@@ -107,16 +108,24 @@ Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long positi
     Gram *nextGram = nullptr;
 
     if (position < sentence.size()) {
-        if ( debug ) {
-            std::cout << "    Gram";
-        }
-
-
         auto search = grams.find(sentence[position]->getId());
         if (search != grams.end()) {
-            nextGram = search->second->next(sentence, position + 1, markerStack);
+            if ( debug ) {
+                std::cout << std::string(depth+6,' ') << "Gram " << Color::FG_CYAN << word->getInputText() << Color::FG_DEFAULT << " forwarding to " << Color::FG_CYAN << search->second->word->getInputText() << Color::FG_DEFAULT << std::endl;
+            }
+
+            nextGram = search->second->next(sentence, position + 1, markerStack, debug);
+        } else if ( debug ) {
+            std::cout << std::string(depth+6,' ') << "Gram " << Color::FG_CYAN << word->getInputText() << Color::FG_DEFAULT << " has no follower for " << Color::FG_CYAN << sentence[position]->getInputText() << Color::FG_DEFAULT << std::endl;
         }
     } else {
+        if ( debug ) {
+            std::cout << std::string(depth+6,' ') << "Gram " << Color::FG_CYAN << word->getInputText() << Color::FG_DEFAULT << " attempting to find a word from:" << std::endl;
+            for (auto &gram:grams) {
+                std::cout << std::string(depth+7,' ') << Color::FG_YELLOW << std::to_string(gram.second->getProbability()) << Color::FG_DEFAULT << "\t"  << Color::FG_LIGHT_GRAY << gram.second->getWord()->getInputText()  << Color::FG_DEFAULT<< std::endl;
+            }
+        }
+
         std::random_device rd;
         std::mt19937 gen(rd());
         std::uniform_real_distribution<> dis(0, 1);
@@ -130,17 +139,41 @@ Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long positi
             }
             probabilities += probability;
         }
+
+        if ( debug ) {
+            if (nextGram != nullptr) {
+                std::cout << std::string(depth + 6, ' ') << "Found " << Color::FG_CYAN << nextGram->word->getInputText() << Color::FG_DEFAULT << std::endl;
+            } else {
+                std::cout << std::string(depth + 6, ' ') << Color::FG_RED << "Nothing Found!" << Color::FG_DEFAULT << std::endl;
+            }
+        }
     }
 
     if (nextGram != nullptr && nextGram->word->isMarker()) {
         if (nextGram->word->isBeginMarker() && nextGram->word->getId() == markerStack.top()->getId()) {
+            if ( debug ) {
+                std::cout << std::string(depth + 6, ' ') << Color::FG_RED << "Can't open stacked marker: " << markerStack.top()->getInputText() << Color::FG_DEFAULT << std::endl;
+            }
             nextGram = nullptr;
 
         } else if (nextGram->word->isEndMarker() &&
                    nextGram->word->getBeginMarker()->getId() != markerStack.top()->getId()) {
+            if ( debug ) {
+                std::cout << std::string(depth + 6, ' ') << Color::FG_RED << "Can't close unstacked marker: " << nextGram->word->getInputText() << Color::FG_DEFAULT << std::endl;
+            }
             nextGram = nullptr;
         }
     }
+
+    if ( debug ) {
+        if (nextGram != nullptr) {
+            std::cout << std::string(depth + 6, ' ') << "Returning " << Color::FG_CYAN << nextGram->word->getInputText() << Color::FG_DEFAULT << std::endl;
+        } else {
+            std::cout << std::string(depth + 6, ' ') << Color::FG_RED << "Nothing to return!" << Color::FG_DEFAULT << std::endl;
+        }
+    }
+
+    //TODO: If more than one possible gram, retry until not null
 
     return nextGram;
 }

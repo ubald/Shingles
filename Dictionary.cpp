@@ -11,6 +11,10 @@ Dictionary::Dictionary(unsigned long n) : n(n) {
     std::unique_ptr<Word> endQuote{std::make_unique<Word>(3, "</q>", "\"")};
     std::unique_ptr<Word> beginParens{std::make_unique<Word>(4, "<p>", "(")};
     std::unique_ptr<Word> endParens{std::make_unique<Word>(5, "</p>", ")")};
+
+    this->beginSentence = beginSentence.get();
+    this->endSentence = endSentence.get();
+
     beginSentence->setAsBeginMarker(endSentence.get());
     endSentence->setAsEndMarker(beginSentence.get());
     beginQuote->setAsBeginMarker(endQuote.get());
@@ -145,6 +149,8 @@ void Dictionary::open(const std::string &path) {
     wordMap["</p>"]->setAsEndMarker(wordMap["<p>"].get());
 
     updateProbabilities();
+
+    std::cout << "Done!" << std::endl;
 }
 
 void Dictionary::save(const std::string &path) const {
@@ -275,12 +281,16 @@ std::string Dictionary::generate(std::string seed) {
         int nullCount = 0;
         do {
             if (debug_) {
-                std::cout << "  Searching new word..." << std::endl;
+                std::cout << "  Searching new word for sentence " << Color::FG_LIGHT_GRAY;
+                for (auto w:sentence) {
+                    std::cout << w->getInputText() << " ";
+                }
+                std::cout << Color::FG_DEFAULT << std::endl;
             }
 
             // Try to find n-gram first then (n-1)-gram etc... until we find something
             const Word *newWord = nullptr;
-            unsigned long start = sentence.size() > n ? sentence.size() - n : 0;
+            unsigned long start = sentence.size() > n - 1 ? sentence.size() - (n - 1) : 0;
             for (unsigned long i = start; i < sentence.size(); ++i) {
                 if (debug_) {
                     std::cout << Color::FG_LIGHT_GRAY << "    From: ";
@@ -299,7 +309,8 @@ std::string Dictionary::generate(std::string seed) {
 
             if (newWord) {
                 if (debug_) {
-                    std::cout << "  Found: " << Color::FG_GREEN << newWord->getInputText() << Color::FG_DEFAULT << std::endl;
+                    std::cout << "  Found: " << Color::FG_GREEN << newWord->getInputText() << Color::FG_DEFAULT
+                              << std::endl;
                 }
 
                 sentence.push_back(newWord);
@@ -311,7 +322,8 @@ std::string Dictionary::generate(std::string seed) {
                 ++nullCount;
 
                 if (debug_) {
-                    std::cout << Color::FG_LIGHT_RED << "  Nothing found (count: " << nullCount << ")" << Color::FG_DEFAULT << std::endl;
+                    std::cout << Color::FG_RED << "  Nothing found (count: " << nullCount << ")" << Color::FG_DEFAULT
+                              << std::endl;
                 }
             }
 
@@ -319,7 +331,7 @@ std::string Dictionary::generate(std::string seed) {
             //TODO: Back off one word if we can't seem to find
             if (nullCount > 100) {
                 if (debug_) {
-                    std::cout << Color::FG_LIGHT_RED << "  Giving up!" << Color::FG_DEFAULT << std::endl;
+                    std::cout << Color::FG_RED << "  Giving up!" << Color::FG_DEFAULT << std::endl;
                 }
                 break;
             }
@@ -331,15 +343,19 @@ std::string Dictionary::generate(std::string seed) {
         markerStack.pop();
     }
 
+    if (debug_) {
+        std::cout << Color::FG_DARK_GRAY << "Raw sentence: ";
+        for (auto w:sentence) {
+            std::cout << w->getInputText() << " ";
+        }
+        std::cout << Color::FG_DEFAULT << std::endl;
+    }
+
     std::string sentenceText("");
     for (auto w:sentence) {
         if (!w->getOutputText().empty()) {
             sentenceText += w->getOutputText() + " ";
         }
-    }
-
-    if (debug_) {
-        std::cout << Color::FG_DARK_GRAY << "Raw sentence: " << sentenceText << Color::FG_DEFAULT << std::endl;
     }
 
     std::transform(sentenceText.begin(), sentenceText.begin() + 1, sentenceText.begin(), ::toupper);
