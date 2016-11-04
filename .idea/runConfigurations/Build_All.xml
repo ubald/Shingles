@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="Build All" type="CMakeRunConfiguration" factoryName="Application" singleton="true" PROGRAM_PARAMS="--interactive --ngram=4" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="Shingles" RUN_TARGET_NAME="shingles" EXPLICIT_BUILD_TARGET_NAME="all">
+  <configuration default="false" name="Build All" type="CMakeRunConfiguration" factoryName="Application" singleton="true" PROGRAM_PARAMS="--interactive --ngram=4 -d dictionary.json -v" WORKING_DIR="file://$PROJECT_DIR$" PASS_PARENT_ENVS_2="true" CONFIG_NAME="Debug" RUN_TARGET_PROJECT_NAME="Shingles" RUN_TARGET_NAME="shingles" EXPLICIT_BUILD_TARGET_NAME="all">
     <envs />
     <method />
   </configuration>

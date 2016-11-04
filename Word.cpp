@@ -115,7 +115,7 @@ void Word::updateProbabilities(unsigned long wordCount) {
 }
 
 const Word *Word::next(const std::vector<const Word *> &sentence, unsigned long position,
-                       const std::stack<const Word *> &markerStack, bool debug) const {
-    Gram *g = gram.next(sentence, position, markerStack, debug);
+                       const std::stack<const Word *> &markerStack, bool finishSentence, bool debug) const {
+    Gram *g = gram.next(sentence, position, markerStack, finishSentence, debug);
     return g ? g->getWord() : nullptr;
 }

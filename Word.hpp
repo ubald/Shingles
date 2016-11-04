@@ -33,7 +33,7 @@ public:
 
     void updateGraph(const std::vector<Word*>& sentence, unsigned long position, unsigned long n);
     void updateProbabilities(unsigned long wordCount);
-    const Word* next(const std::vector<const Word*>& sentence, unsigned long n, const std::stack<const Word*> &markerStack, bool debug = false) const;
+    const Word* next(const std::vector<const Word*>& sentence, unsigned long n, const std::stack<const Word*> &markerStack, bool finishSentence = false, bool debug = false) const;
 private:
     unsigned long id;
     const Word* beginMarker{};

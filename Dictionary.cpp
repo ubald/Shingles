@@ -63,20 +63,11 @@ void Dictionary::ingestFile(const std::string &filePath) {
         exit(1);
     }
 
-    std::cout << "Parsing sentences..." << std::endl;
-    std::vector<std::string> sentences = Parser::parse(text);
+    std::cout << "Parsing..." << std::endl;
+    std::vector<std::string> words = Parser::parse(text, debug_);
 
-    {
-        std::ofstream output("output.txt");
-        for (std::string s:sentences) {
-            output << s << "\n";
-        }
-    }
-
-    std::cout << "Ingesting sentences..." << std::endl;
-    for (auto &sentence: sentences) {
-        ingest(sentence);
-    }
+    std::cout << "Ingesting..." << std::endl;
+    ingest(words);
 
     std::cout << "Updating probabilities..." << std::endl;
     updateProbabilities();
@@ -139,6 +130,8 @@ void Dictionary::open(const std::string &path) {
         return;
     }
 
+    idCounter = wordMap.size() - 1;
+
     beginSentence = wordMap["<s>"].get();
     endSentence = wordMap["</s>"].get();
     beginSentence->setAsBeginMarker(endSentence);
@@ -175,18 +168,63 @@ void Dictionary::save(const std::string &path) const {
 }
 
 void Dictionary::input(const std::string &text) {
-    std::vector<std::string> sentences = Parser::parse(text);
-    for (auto sentence:sentences) {
-        ingest(sentence);
-    }
+    std::vector<std::string> words = Parser::parse(text, debug_);
+    ingest(words);
     updateProbabilities();
 }
 
-void Dictionary::ingest(const std::string &sentence, bool doUpdateProbabilities) {
-    std::vector<std::string> sentenceWordStrings = split(sentence, ' ');
+void Dictionary::ingest(std::vector<std::string> &words, bool doUpdateProbabilities) {
+    // Stack of markers to complete before ending the sentence
+    std::stack<const Word *> markerStack{};
+    std::vector<Word *> sentenceWords;
+
+    for (auto &wordString:words) {
+        if (markerStack.size() == 0) {
+            markerStack.push(beginSentence);
+            sentenceWords.push_back(beginSentence);
+        }
+
+        Word * word;
+        auto search = wordMap.find(wordString);
+        if (search == wordMap.end()) {
+            unsigned long id = ++idCounter;
+            std::unique_ptr<Word> w = std::make_unique<Word>(id, wordString);
+            word = w.get();
+            wordMap[wordString] = std::move(w);
+        } else {
+            word = search->second.get();
+        }
+
+        sentenceWords.push_back(word);
+
+        if( markerStack.size() == 1 && ( wordString == "." || wordString == "!" || wordString == "?" ) ) {
+            sentenceWords.push_back(endSentence);
+
+            // Forget possible empty sentences
+            if (sentenceWords.size() > 2) {
+                // Do not loop to endSentence, not necessary
+                for (unsigned long i = 0; i < sentenceWords.size(); ++i) {
+                    sentenceWords[i]->updateGraph(sentenceWords, i, n);
+                }
+            }
+
+            // Update probabilities
+            if (doUpdateProbabilities) {
+                updateProbabilities();
+            }
+
+            sentenceWords.clear();
+            std::stack<const Word *>().swap(markerStack);
+
+        } else if ( word->isBeginMarker() ) {
+            markerStack.push(word);
+        } else if ( word->getId() == markerStack.top()->getEndMarker()->getId() ) {
+            markerStack.pop();
+        }
+    }
 
     // Words
-    std::vector<Word *> sentenceWords;
+    /*std::vector<Word *> sentenceWords;
     sentenceWords.push_back(beginSentence);
     for (auto sentenceWordString:sentenceWordStrings) {
         auto search = wordMap.find(sentenceWordString);
@@ -213,7 +251,7 @@ void Dictionary::ingest(const std::string &sentence, bool doUpdateProbabilities)
     // Update probabilities
     if (doUpdateProbabilities) {
         updateProbabilities();
-    }
+    }*/
 }
 
 void Dictionary::updateProbabilities() {
@@ -253,7 +291,7 @@ std::string Dictionary::generate(std::string seed) {
         }
 
         if (debug_) {
-            std::cout << "Seed: (" << sentence.size() << ")";
+            std::cout << "Seed: (" << sentence.size() << ") ";
             for (auto w:sentence) {
                 std::cout << w->getInputText() << " ";
             }
@@ -261,14 +299,17 @@ std::string Dictionary::generate(std::string seed) {
         }
     }
 
-
-
     // Add current sentence markers to the stack
     for (auto &word:sentence) {
         if (word->isBeginMarker()) {
             markerStack.push(word);
         }
     }
+
+    const unsigned long seedSize = sentence.size();
+    unsigned long retryPosition = seedSize;
+    unsigned long backOffCount = 0;
+    bool finishSentence = false;
 
     const Word *lastWord = nullptr;
     while (markerStack.size() > 0) {
@@ -278,10 +319,9 @@ std::string Dictionary::generate(std::string seed) {
                       << std::endl;
         }
 
-        int nullCount = 0;
         do {
             if (debug_) {
-                std::cout << "  Searching new word for sentence " << Color::FG_LIGHT_GRAY;
+                std::cout << "  Searching new word for sentence: " << Color::FG_LIGHT_GRAY;
                 for (auto w:sentence) {
                     std::cout << w->getInputText() << " ";
                 }
@@ -300,7 +340,10 @@ std::string Dictionary::generate(std::string seed) {
                     std::cout << Color::FG_DEFAULT << std::endl;
                 }
 
-                const Word *w = sentence[i]->next(sentence, i + 1, markerStack, debug_);
+                if ( finishSentence) {
+                    std::cout << "break" << std::endl;
+                }
+                const Word *w = sentence[i]->next(sentence, i + 1, markerStack, finishSentence, debug_);
                 if (w != nullptr) {
                     newWord = w;
                     break;
@@ -309,39 +352,75 @@ std::string Dictionary::generate(std::string seed) {
 
             if (newWord) {
                 if (debug_) {
-                    std::cout << "  Found: " << Color::FG_GREEN << newWord->getInputText() << Color::FG_DEFAULT
-                              << std::endl;
+                    std::cout << "  Found: " << Color::FG_GREEN << newWord->getInputText() << Color::FG_DEFAULT<< std::endl;
                 }
 
                 sentence.push_back(newWord);
+
                 // If found word is a marker add it to the marker stack
                 if (newWord->isBeginMarker()) {
                     markerStack.push(newWord);
                 }
+
+                // Push the retry cursor forward with the sentence
+                if (sentence.size() > retryPosition ) {
+                    retryPosition = sentence.size();
+                    backOffCount = 0;
+                }
+
+                // If we are past the max sentence size, finish as soon as possible
+                if ( sentence.size() > 10 ) {
+                    finishSentence = true;
+                }
+
             } else {
-                ++nullCount;
-
                 if (debug_) {
-                    std::cout << Color::FG_RED << "  Nothing found (count: " << nullCount << ")" << Color::FG_DEFAULT
-                              << std::endl;
+                    std::cout << Color::FG_RED << "  Nothing found" << Color::FG_DEFAULT<< std::endl;
                 }
-            }
 
-            //TODO: Separate filling a sentence/marker and finding a new word
-            //TODO: Back off one word if we can't seem to find
-            if (nullCount > 100) {
-                if (debug_) {
-                    std::cout << Color::FG_RED << "  Giving up!" << Color::FG_DEFAULT << std::endl;
+                ++backOffCount;
+                long backOffPosition = static_cast<long>(retryPosition) - static_cast<long>(backOffCount);
+                if (backOffPosition>= static_cast<long>(seedSize)) {
+                    if (debug_) {
+                        std::cout << Color::FG_BLUE << "  Backing off to position " << (retryPosition-backOffCount) << "/" << sentence.size() << Color::FG_DEFAULT << std::endl;
+                    }
+
+                    unsigned long removeCount = sentence.size() - backOffPosition;
+                    for(unsigned long i = 0; i < removeCount; ++i) {
+                        const Word* w = sentence.back();
+                        sentence.pop_back();
+                        // Remove from stack if it was a marker
+                        if ( w->getId() == markerStack.top()->getId() ) {
+                            markerStack.pop();
+
+                            if (debug_) {
+                                std::cout << Color::FG_BLUE << "  Removing " << w->getInputText() << " from stack" << Color::FG_DEFAULT << std::endl;
+                            }
+                        }
+                    }
+
+                    // Continue from here, we don't want to record the new sentence backoff point until we find somethinf
+                    continue;
+
+                } else {
+                    if (debug_) {
+                        std::cout << Color::FG_RED << "  Can't back off past seed, giving up!" << Color::FG_DEFAULT << std::endl;
+                    }
+                    break;
                 }
-                break;
             }
 
             lastWord = newWord;
 
         } while (lastWord == nullptr || lastWord->getId() != markerStack.top()->getEndMarker()->getId());
 
+        if (debug_) {
+            std::cout << "Popping marker stack: " << Color::FG_LIGHT_GRAY << markerStack.top()->getInputText() << Color::FG_DEFAULT << std::endl;
+        }
+
         markerStack.pop();
-    }
+
+    } // end while markerStack > 0
 
     if (debug_) {
         std::cout << Color::FG_DARK_GRAY << "Raw sentence: ";

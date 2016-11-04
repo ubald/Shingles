@@ -17,7 +17,7 @@ public:
     Dictionary(unsigned long n = 3);
     void ingestFile(const std::string& filePath);
     void input(const std::string &text);
-    void ingest(const std::string &sentence, bool doUpdateProbabilities = false);
+    void ingest(std::vector<std::string> &words, bool doUpdateProbabilities = false);
     void updateProbabilities();
     std::string generate(std::string seed = "");
     void open(const std::string &path);

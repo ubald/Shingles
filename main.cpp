@@ -47,7 +47,7 @@ struct Arg : public option::Arg {
 };
 
 enum optionIndex {
-    UNKNOWN, HELP, NGRAM, DICTIONARY, FILE_INPUT, INTERACTIVE
+    UNKNOWN, HELP, NGRAM, DICTIONARY, FILE_INPUT, INTERACTIVE, VERBOSE
 };
 const option::Descriptor usage[] = {
         {UNKNOWN,     0, "",  "",            Arg::None,     "USAGE: shingles [options]\n\nOptions:"},
@@ -56,6 +56,7 @@ const option::Descriptor usage[] = {
         {DICTIONARY,  0, "d", "dictionary",  Arg::Required, "  -d <file>, --dictionary=<file>  \tLoad the dictionary JSON file."},
         {FILE_INPUT,  0, "f", "file",        Arg::Required, "  -f <file>, --file=<file>  \tIngest the file."},
         {INTERACTIVE, 0, "i", "interactive", Arg::None,     "  -i, --interactive  \tInteractive console."},
+        {VERBOSE,     0, "v", "verbose",     Arg::None,     "  -v, --verbose  \tVerbose mode."},
         {0,           0, 0,   0,             0,             0}
 };
 
@@ -111,6 +112,10 @@ int main(int argc, char *argv[]) {
         }
         dictionary = std::make_unique<Dictionary>(n);
         std::cout << "Created a " << n << "-gram dictionary" << std::endl;
+    }
+
+    if (options[VERBOSE]) {
+        dictionary->setDebug(true);
     }
 
     if (options[FILE_INPUT]) {
