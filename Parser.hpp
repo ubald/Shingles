@@ -10,9 +10,7 @@
 class Parser {
 public:
     Parser() = delete;
-    static std::vector<std::string> parse(const std::string text, bool debug = false);
-
-private:
+    static void parse(const std::string text, std::function<void(std::vector<std::string>&)> callback, std::function<void(void)> done, bool debug = false);
     static std::vector<std::string> parseChunk(std::string textBuffer, bool debug = false);
 };
 

@@ -9,7 +9,6 @@
       <sourceFolder url="file://$MODULE_DIR$/utils/color.hpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/utils/color.cpp" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Gram.cpp" isTestSource="false" />
-      <sourceFolder url="file://$MODULE_DIR$/input.txt" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/vendor/linenoise/linenoise.c" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/vendor/linenoise/linenoise.h" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/vendor/jsoncpp/jsoncpp.cpp" isTestSource="false" />

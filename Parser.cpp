@@ -4,8 +4,11 @@
 #include "utils/split.hpp"
 #include "Parser.hpp"
 
-std::vector<std::string> Parser::parse(const std::string text, bool debug) {
-    //return Parser::parseChunk(text);
+void Parser::parse(const std::string text, std::function<void(std::vector<std::string> &)> callback, std::function<void(void)> done, bool debug) {
+    /*std::vector<std::string> chunk = Parser::parseChunk(text);
+    callback(chunk);
+    done();
+    return;*/
     std::string textBuffer = text;
     std::vector<std::future<std::vector<std::string>>> pool{};
 
@@ -31,12 +34,12 @@ std::vector<std::string> Parser::parse(const std::string text, bool debug) {
     if (debug) {
         std::cout << "Waiting on futures..." << std::endl;
     }
-    std::vector<std::string> words{};
     while (processedChunks < numChunks) {
-        for(auto &fut:pool) {
+        for (auto &fut:pool) {
             if (fut.valid()) {
                 auto w = fut.get();
-                words.insert( words.end(), w.begin(), w.end() );
+                callback(w);
+                //words.insert( words.end(), w.begin(), w.end() );
                 ++processedChunks;
             }
         }
@@ -45,7 +48,7 @@ std::vector<std::string> Parser::parse(const std::string text, bool debug) {
         std::cout << "Done!" << std::endl;
     }
 
-    return words;
+    done();
 }
 
 void saveIntermediate(std::string name, std::string buff) {
@@ -56,25 +59,79 @@ void saveIntermediate(std::string name, std::string buff) {
 
 std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) {
 
-    // Remove crap
-    if ( debug ) {
+    // Remove crap, double space replace in order to eliminate crap for quotes to quotes not being replaced byt their regex
+    if (debug) {
         std::cout << "Removing crap..." << std::endl;
     }
-    textBuffer = std::regex_replace(textBuffer, std::regex("[\\x00-\\x1F_]"), " ");
-
-    // Remove extra paragraphs
-    //std::regex paragraph_re("[\r\n]");
-    //textBuffer = std::regex_replace(textBuffer, paragraph_re, " ");
+    textBuffer = std::regex_replace(textBuffer, std::regex("[\\x00-\\x1F_]"), "  ");
+    textBuffer = std::regex_replace(textBuffer, std::regex("-{2,}"), "  ");
 
     // Make punctuation actual words
-    if ( debug ) {
+    if (debug) {
         std::cout << "Separating punctuation..." << std::endl;
     }
-    textBuffer = std::regex_replace(textBuffer, std::regex("\\.\\.\\."), " … ");
+    textBuffer = std::regex_replace(textBuffer, std::regex("\\.\\.\\."), " … "); // elipsis
     textBuffer = std::regex_replace(textBuffer, std::regex("([\\.\\,\\:\\;\\!\\?\\(\\)\"“”«»])"), " $1 ");
 
+    // Before starting to add markers, start by removing anything resembling one
+    if (debug) {
+        std::cout << "Removing marker-like structures..." << std::endl;
+    }
+    textBuffer = std::regex_replace(textBuffer, std::regex("<(.+?)>"), "($1)");
+    textBuffer = std::regex_replace(textBuffer, std::regex("[<>]"), " ");
+
+    // Extract quotes
+    if (debug) {
+        std::cout << "Extracting quotes..." << std::endl;
+    }
+    std::vector<std::pair<std::string, std::string>> quoteMarkerPairs{
+        std::make_pair("\"", "\""),
+        std::make_pair("“", "”"),
+        std::make_pair("‘", "’"),
+        std::make_pair("«", "»")
+    };
+    for (auto marker : quoteMarkerPairs) {
+        textBuffer = std::regex_replace(textBuffer, std::regex(marker.first + "(.+?)" + marker.second),
+                                        " <q> $1 </q> ");
+    }
+
+    // Special case with spaces not to catch real apostrophes
+    // We don't want it to be in the stray marker removal also
+    //textBuffer = std::regex_replace(textBuffer, std::regex("(?:^| )'(.+?)'(?:$| )"), "<q> $1 </q>");
+    textBuffer = std::regex_replace(textBuffer, std::regex("([^A-Za-z0-9])'(.+?)'([^A-Za-z0-9])"), "$1 <q> $2 </q> $3");
+
+    // Experiment: try to put apostrophes as words
+    textBuffer = std::regex_replace(textBuffer, std::regex("'"), " ' ");
+
+    // Extract parens
+    if (debug) {
+        std::cout << "Extracting parens..." << std::endl;
+    }
+    std::vector<std::pair<std::string, std::string>> parensMarkerPairs{
+        std::make_pair("\\(", "\\)"),
+        std::make_pair("\\[", "\\]"),
+        std::make_pair("\\{", "\\}")
+    };
+    for (auto marker : parensMarkerPairs) {
+        textBuffer = std::regex_replace(textBuffer, std::regex(marker.first + "(.+?)" + marker.second),
+                                        " <p> $1 </p> ");
+    }
+
+    // Remove stray markers
+    if (debug) {
+        std::cout << "Removing stray markers..." << std::endl;
+    }
+    std::string strayMarkers = "";
+    for (auto marker : quoteMarkerPairs) {
+        strayMarkers += marker.first + marker.second;
+    }
+    for (auto marker : parensMarkerPairs) {
+        strayMarkers += marker.first + marker.second;
+    }
+    textBuffer = std::regex_replace(textBuffer, std::regex("[" + strayMarkers + "]"), " ");
+
     // Remove double spaces
-    if ( debug ) {
+    if (debug) {
         std::cout << "Removing double spaces..." << std::endl;
     }
     std::regex doubleSpace_re("  ");
@@ -82,75 +139,13 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
         textBuffer = std::regex_replace(textBuffer, doubleSpace_re, " ");
     }
 
-    // Before starting to add markers, start by removing anything resembling one
-    if ( debug ) {
-        std::cout << "Removing marker-like structures..." << std::endl;
-    }
-    textBuffer = std::regex_replace(textBuffer, std::regex("<(.+?)>"), "($1)");
-    textBuffer = std::regex_replace(textBuffer, std::regex("[<>]"), " ");
-
-    // Extract quotes
-    if ( debug ) {
-        std::cout << "Extracting quotes..." << std::endl;
-    }
-    std::vector<std::pair<std::string,std::string>> quoteMarkerPairs{
-        std::make_pair("\"", "\""),
-        std::make_pair("“", "”"),
-        std::make_pair("‘", "’"),
-        std::make_pair("«", "»")
-    };
-    for ( auto marker : quoteMarkerPairs ) {
-        textBuffer = std::regex_replace(textBuffer, std::regex(marker.first + "(.+?)" + marker.second), "<q> $1 </q>");
-    }
-    // Special case with spaces not to catch real apostrophes
-    // We don't want it to be in the stray marker removal also
-    //textBuffer = std::regex_replace(textBuffer, std::regex("(?:^| )'(.+?)'(?:$| )"), "<q> $1 </q>");
-    textBuffer = std::regex_replace(textBuffer, std::regex("([^A-Za-z0-9])'(.+?)'([^A-Za-z0-9])"), "$1<q> $2 </q>$3");
-
-    // Extract parens
-    if ( debug ) {
-        std::cout << "Extracting parens..." << std::endl;
-    }
-    std::vector<std::pair<std::string,std::string>> parensMarkerPairs{
-            std::make_pair("\\(", "\\)"),
-            std::make_pair("\\[", "\\]"),
-            std::make_pair("\\{", "\\}")
-    };
-    for ( auto marker : parensMarkerPairs ) {
-        textBuffer = std::regex_replace(textBuffer, std::regex(marker.first + "(.+?)" + marker.second), "<p> $1 </p>");
-    }
-
-    // Remove stray markers
-    if ( debug ) {
-        std::cout << "Removing stray markers..." << std::endl;
-    }
-    std::string strayMarkers = "";
-    for ( auto marker : quoteMarkerPairs ) {
-        strayMarkers += marker.first + marker.second;
-    }
-    for ( auto marker : parensMarkerPairs ) {
-        strayMarkers += marker.first + marker.second;
-    }
-    textBuffer = std::regex_replace(textBuffer, std::regex("[" + strayMarkers + "]"), " ");
-
-    // Extract sentences
-    /*if ( debug ) {
-        std::cout << "Extracting sentences..." << std::endl;
-    }*/
-    // Disable punctuation inside markers
-
-    /*std::regex sentence_re("([\\.\\!\\?])( +(?:<\\/.+?>(?: |))*)");//"([\\.\\!\\?]) ((?!<\\/))");
-    textBuffer = std::regex_replace(textBuffer, sentence_re, "$1$2\n");*/
-
-    saveIntermediate("intermediate", textBuffer);
-
     // To lowercase
-    if ( debug ) {
+    if (debug) {
         std::cout << "Lowercasing..." << std::endl;
     }
     std::transform(textBuffer.begin(), textBuffer.end(), textBuffer.begin(), ::tolower);
 
-    if ( debug ) {
+    if (debug) {
         std::cout << "Vectorizing..." << std::endl;
     }
     std::vector<std::string> words{};
@@ -164,21 +159,4 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
     }
 
     return words;
-
-    /*std::vector<std::string> sentences{};
-    std::stringstream ss;
-    ss.str(textBuffer);
-    std::string sentence;
-    while (std::getline(ss, sentence, '\n')) {
-        sentence = std::regex_replace(sentence, std::regex("^ +| +$|( ) +"), "$1");
-        if (!sentence.empty()) {
-            sentences.push_back(sentence);
-        }
-    }
-
-    if ( debug ) {
-        std::cout << "Done!" << std::endl;
-    }
-
-    return sentences;*/
 }

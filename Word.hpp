@@ -21,7 +21,7 @@ public:
     const std::string toString() const;
     const Json::Value toJson() const;
     static std::unique_ptr<Word> fromJson(const Json::Value word_json);
-    void fromJson(const Json::Value word_json, const std::map<unsigned long, std::unique_ptr<Word>> &wordsById);
+    void fromJson(const Json::Value word_json, std::map<unsigned long, std::unique_ptr<Word>> &wordsById);
 
     bool isMarker() const;
     bool isBeginMarker() const;
@@ -33,6 +33,8 @@ public:
 
     void updateGraph(const std::vector<Word*>& sentence, unsigned long position, unsigned long n);
     void updateProbabilities(unsigned long wordCount);
+    std::vector<const Word*> candidates(const std::vector<const Word *> &sentence, unsigned long position) const;
+    const Word* mostProbable(const std::vector<const Word *> &sentence, unsigned long position) const;
     const Word* next(const std::vector<const Word*>& sentence, unsigned long n, const std::stack<const Word*> &markerStack, bool finishSentence = false, bool debug = false) const;
 private:
     unsigned long id;

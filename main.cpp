@@ -7,6 +7,8 @@
 #include "Parser.hpp"
 #include "Dictionary.hpp"
 
+std::unique_ptr<Dictionary> dictionary{nullptr};
+
 struct Arg : public option::Arg {
     static void printError(const char *msg1, const option::Option &opt, const char *msg2) {
         fprintf(stderr, "%s", msg1);
@@ -60,22 +62,29 @@ const option::Descriptor usage[] = {
         {0,           0, 0,   0,             0,             0}
 };
 
-/*char *hints(const char *buf, int *color, int *bold) {
-    if (!strcasecmp(buf, "git remote add")) {
-        *color = 35;
-        *bold = 0;
-        return " <name> <url>";
+char *hints(const char *buf, int *color, int *bold) {
+    std::string buffer(buf);
+    if ( !buffer.empty() ) {
+        //TODO: Autocomplete current word if buffer.back() != ' '
+        std::string hint = dictionary->nextMostProbableWord(buffer);
+        if (!hint.empty()) {
+            *color = Color::FG_DARK_GRAY;
+            *bold = 0;
+            return strdup(std::string((buffer.back() != ' ' ? " " : "") + hint).c_str());
+        }
     }
     return NULL;
-}*/
+}
 
-/*void completion(const char *buf, linenoiseCompletions *lc) {
-    if (buf[0] == 'h') {
-        linenoiseAddCompletion(lc, "hello");
-        linenoiseAddCompletion(lc, "hallo");
-        linenoiseAddCompletion(lc, "hello there");
+void completion(const char *buf, linenoiseCompletions *lc) {
+    std::string buffer(buf);
+    if ( !buffer.empty() ) {
+        const std::vector<const std::string> words = dictionary->nextCandidateWords(buffer);
+        for (auto w:words) {
+            linenoiseAddCompletion(lc, (buffer + (buffer.back() != ' ' ? " " : "") + w).c_str());
+        }
     }
-}*/
+}
 
 int main(int argc, char *argv[]) {
     // skip program name argv[0] if present
@@ -101,7 +110,7 @@ int main(int argc, char *argv[]) {
         std::cout << "Non-option #" << i << ": " << parse.nonOption(i) << "\n";
 
     // Create the dictionary
-    std::unique_ptr<Dictionary> dictionary{nullptr};
+
     if (options[DICTIONARY]) {
         dictionary = std::make_unique<Dictionary>();
         dictionary->open(options[DICTIONARY].arg);
@@ -125,9 +134,9 @@ int main(int argc, char *argv[]) {
     if (options[INTERACTIVE]) {
         char *line;
         linenoiseHistorySetMaxLen(32);
-        //linenoiseSetHintsCallback(hints);
-        //linenoiseSetCompletionCallback(completion);
-        while ((line = linenoise("shingles: ")) != NULL) {
+        linenoiseSetHintsCallback(hints);
+        linenoiseSetCompletionCallback(completion);
+        while ((line = linenoise("human: ")) != NULL) {
             const std::string line_str = std::string(line);
             if (line_str[0] == ':') {
                 std::vector<std::string> input = split(line_str.substr(1, std::string::npos), ' ');
@@ -164,13 +173,23 @@ int main(int argc, char *argv[]) {
                     std::cerr << "Please enter a command" << std::endl;
                 }
             } else if (line_str[0] == '>') {
-                std::cout << dictionary->generate(line_str.substr(1, std::string::npos)) << std::endl;
+                std::string wisdom = dictionary->generate(line_str.substr(1, std::string::npos));
+                std::cout << Color::FG_MAGENTA << "shingles"
+                          << Color::FG_DARK_GRAY << ": "
+                          << Color::FG_DEFAULT
+                          << wisdom
+                          << std::endl;
 
             } else {
                 if (line_str.size() > 0) {
                     dictionary->input(line_str);
                 }
-                std::cout << dictionary->generate() << std::endl;
+                std::string wisdom = dictionary->generate();
+                std::cout<< Color::FG_MAGENTA << "shingles"
+                         << Color::FG_DARK_GRAY << ": "
+                         << Color::FG_DEFAULT
+                         << wisdom
+                         << std::endl;
             }
 
             linenoiseHistoryAdd(line);

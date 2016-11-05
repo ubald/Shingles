@@ -73,7 +73,7 @@ const Json::Value Word::toJson() const {
     return wordJson;
 }
 
-void Word::fromJson(const Json::Value word_json, const std::map<unsigned long, std::unique_ptr<Word>> &wordsById) {
+void Word::fromJson(const Json::Value word_json, std::map<unsigned long, std::unique_ptr<Word>> &wordsById) {
     const Json::Value gram_json = word_json["gram"];
     if (gram_json == Json::nullValue) {
         std::cerr << "Missing word gram" << std::endl;
@@ -114,8 +114,22 @@ void Word::updateProbabilities(unsigned long wordCount) {
     gram.computeProbability(wordCount);
 }
 
+std::vector<const Word*> Word::candidates(const std::vector<const Word *> &sentence, unsigned long position) const {
+    std::vector<const Gram*> gramCandidates = gram.candidates(sentence, position);
+    std::vector<const Word*> wordCandidates{};
+    for(auto g:gramCandidates) {
+        wordCandidates.push_back(g->getWord());
+    }
+    return wordCandidates;
+}
+
+const Word *Word::mostProbable(const std::vector<const Word *> &sentence, unsigned long position) const {
+    const Gram *g = gram.mostProbable(sentence, position);
+    return g ? g->getWord() : nullptr;
+}
+
 const Word *Word::next(const std::vector<const Word *> &sentence, unsigned long position,
                        const std::stack<const Word *> &markerStack, bool finishSentence, bool debug) const {
-    Gram *g = gram.next(sentence, position, markerStack, finishSentence, debug);
+    const Gram *g = gram.next(sentence, position, markerStack, finishSentence, debug);
     return g ? g->getWord() : nullptr;
 }
