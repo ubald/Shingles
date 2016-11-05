@@ -65,6 +65,7 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
     }
     textBuffer = std::regex_replace(textBuffer, std::regex("[\\x00-\\x1F_]"), "  ");
     textBuffer = std::regex_replace(textBuffer, std::regex("-{2,}"), "  ");
+    textBuffer = std::regex_replace(textBuffer, std::regex("http[s]?:\\/\\/(?:.+?) "), " ");
 
     // Make punctuation actual words
     if (debug) {

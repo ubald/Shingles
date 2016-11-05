@@ -128,8 +128,8 @@ const Word *Word::mostProbable(const std::vector<const Word *> &sentence, unsign
     return g ? g->getWord() : nullptr;
 }
 
-const Word *Word::next(const std::vector<const Word *> &sentence, unsigned long position,
+std::pair<const Word*,double> Word::next(const std::vector<const Word *> &sentence, unsigned long position,
                        const std::stack<const Word *> &markerStack, bool finishSentence, bool debug) const {
     const Gram *g = gram.next(sentence, position, markerStack, finishSentence, debug);
-    return g ? g->getWord() : nullptr;
+    return g ? std::make_pair(g->getWord(), g->getProbability()) : std::make_pair(nullptr,0.0);
 }

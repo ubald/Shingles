@@ -35,7 +35,7 @@ public:
     void updateProbabilities(unsigned long wordCount);
     std::vector<const Word*> candidates(const std::vector<const Word *> &sentence, unsigned long position) const;
     const Word* mostProbable(const std::vector<const Word *> &sentence, unsigned long position) const;
-    const Word* next(const std::vector<const Word*>& sentence, unsigned long n, const std::stack<const Word*> &markerStack, bool finishSentence = false, bool debug = false) const;
+    std::pair<const Word*,double> next(const std::vector<const Word*>& sentence, unsigned long n, const std::stack<const Word*> &markerStack, bool finishSentence = false, bool debug = false) const;
 private:
     unsigned long id;
     const Word* beginMarker{};

@@ -176,7 +176,7 @@ void Dictionary::save(const std::string &path) const {
     std::ofstream output(path);
     writer->write(root, &output);
 
-    std::cout << "Saved!" << path << std::endl;
+    std::cout << "Saved!" << std::endl;
 }
 
 void Dictionary::input(const std::string &text) {
@@ -357,6 +357,8 @@ std::string Dictionary::generate(std::string seed) const {
     unsigned long backOffCount = 0;
     bool finishSentence = false;
 
+    double score = -1;
+
     const Word *lastWord = nullptr;
     while (markerStack.size() > 0) {
 
@@ -386,9 +388,10 @@ std::string Dictionary::generate(std::string seed) const {
                     std::cout << Color::FG_DEFAULT << std::endl;
                 }
 
-                const Word *w = sentence[i]->next(sentence, i + 1, markerStack, finishSentence, debug_);
-                if (w != nullptr) {
-                    newWord = w;
+                std::pair<const Word *,double> res = sentence[i]->next(sentence, i + 1, markerStack, finishSentence, debug_);
+                if (res.first != nullptr) {
+                    newWord = res.first;
+                    score = ( score == -1) ? res.second : (score + res.second) / 2;
                     break;
                 }
             }
@@ -471,7 +474,7 @@ std::string Dictionary::generate(std::string seed) const {
     } // end while markerStack > 0
 
     if (debug_) {
-        std::cout << Color::FG_DARK_GRAY << "Raw sentence: ";
+        std::cout << Color::FG_DARK_GRAY << "Raw sentence (" << Color::FG_MAGENTA << std::to_string(score) << Color::FG_DARK_GRAY << "): ";
         for (auto w:sentence) {
             std::cout << w->getInputText() << " ";
         }

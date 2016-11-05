@@ -182,7 +182,7 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
 
         if (finishSentence) {
             if (debug) {
-                std::cout << std::string(depth + 6, ' ') << "Trying to finish sentence, giving priority to markerStack: "
+                std::cout << std::string(depth + 6, ' ') << "Trying to finish sentence, giving priority to marker stack: "
                           << Color::FG_LIGHT_GRAY << markerStack.top()->getEndMarker()->getInputText() << Color::FG_DEFAULT << std::endl;
             }
 
