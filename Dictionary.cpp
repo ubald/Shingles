@@ -229,6 +229,7 @@ void Dictionary::ingest(std::vector<std::string> &words, bool doUpdateProbabilit
     }
 
     if (markerStack.size() > 0 && sentenceWords.size() > 0) {
+        // Close missing markers from text, we don't want to leave them open for the ingestion
         while (markerStack.size() > 0) {
             sentenceWords.push_back(const_cast<Word *>(markerStack.top()->getEndMarker()));
             markerStack.pop();
@@ -314,7 +315,7 @@ std::string Dictionary::nextMostProbableWord(std::string seed) const {
     return newWord ? newWord->getOutputText() : "";
 }
 
-std::string Dictionary::generate(std::string seed) const {
+std::string Dictionary::generate(std::string topic, std::string seed) const {
     // Stack of markers to complete before ending the sentence
     std::stack<const Word *> markerStack{};
 
@@ -339,6 +340,35 @@ std::string Dictionary::generate(std::string seed) const {
             std::cout << Color::FG_DEFAULT << std::endl;
             std::cout << "Sentence seed: (" << sentence.size() << "): " << Color::FG_DARK_GRAY;
             for (auto w:sentence) {
+                std::cout << w->getInputText() << " ";
+            }
+            std::cout << Color::FG_DEFAULT << std::endl;
+        }
+    }
+
+    // Topic
+    std::vector<const Word *> topicWords{};
+    if ( !topic.empty() ) {
+        std::vector<std::string> topicStrings = Parser::parseChunk(topic);
+        for (auto &wordString:topicStrings) {
+            Word *word;
+            auto search = wordMap.find(wordString);
+            if ( search != wordMap.end() ) {
+                word = search->second.get();
+                if ( !word->isMarker() ) {
+                    topicWords.push_back(word);
+                }
+            }
+        }
+
+        if (debug_) {
+            std::cout << "Raw topic: (" << topicStrings.size() << "): " << Color::FG_DARK_GRAY;
+            for (auto w:topicStrings) {
+                std::cout << w << " ";
+            }
+            std::cout << Color::FG_DEFAULT << std::endl;
+            std::cout << "Sentence topic: (" << topicWords.size() << "): " << Color::FG_DARK_GRAY;
+            for (auto w:topicWords) {
                 std::cout << w->getInputText() << " ";
             }
             std::cout << Color::FG_DEFAULT << std::endl;
@@ -388,10 +418,10 @@ std::string Dictionary::generate(std::string seed) const {
                     std::cout << Color::FG_DEFAULT << std::endl;
                 }
 
-                std::pair<const Word *,double> res = sentence[i]->next(sentence, i + 1, markerStack, finishSentence, debug_);
-                if (res.first != nullptr) {
-                    newWord = res.first;
-                    score = ( score == -1) ? res.second : (score + res.second) / 2;
+                const Gram * nextGram = sentence[i]->nextGram(sentence, i + 1, markerStack, topicWords, finishSentence, debug_);
+                if (nextGram != nullptr) {
+                    newWord = nextGram->getWord();
+                    score = ( score == -1) ? nextGram->getProbability() : (score + nextGram->getProbability()) / 2;
                     break;
                 }
             }

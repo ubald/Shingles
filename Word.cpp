@@ -114,10 +114,10 @@ void Word::updateProbabilities(unsigned long wordCount) {
     gram.computeProbability(wordCount);
 }
 
-std::vector<const Word*> Word::candidates(const std::vector<const Word *> &sentence, unsigned long position) const {
-    std::vector<const Gram*> gramCandidates = gram.candidates(sentence, position);
-    std::vector<const Word*> wordCandidates{};
-    for(auto g:gramCandidates) {
+std::vector<const Word *> Word::candidates(const std::vector<const Word *> &sentence, unsigned long position) const {
+    std::vector<const Gram *> gramCandidates = gram.candidates(sentence, position);
+    std::vector<const Word *> wordCandidates{};
+    for (auto g:gramCandidates) {
         wordCandidates.push_back(g->getWord());
     }
     return wordCandidates;
@@ -128,8 +128,15 @@ const Word *Word::mostProbable(const std::vector<const Word *> &sentence, unsign
     return g ? g->getWord() : nullptr;
 }
 
-std::pair<const Word*,double> Word::next(const std::vector<const Word *> &sentence, unsigned long position,
-                       const std::stack<const Word *> &markerStack, bool finishSentence, bool debug) const {
-    const Gram *g = gram.next(sentence, position, markerStack, finishSentence, debug);
-    return g ? std::make_pair(g->getWord(), g->getProbability()) : std::make_pair(nullptr,0.0);
+const Word *Word::nextWord(const std::vector<const Word *> &sentence, unsigned long position,
+                           const std::stack<const Word *> &markerStack, const std::vector<const Word *> topic,
+                           bool finishSentence, bool debug) const {
+    const Gram *g = gram.next(sentence, position, markerStack, topic, finishSentence, debug);
+    return g ? g->getWord() : nullptr;
+}
+
+const Gram *Word::nextGram(const std::vector<const Word *> &sentence, unsigned long position,
+                           const std::stack<const Word *> &markerStack, const std::vector<const Word *> topic,
+                           bool finishSentence, bool debug) const {
+    return gram.next(sentence, position, markerStack, topic, finishSentence, debug);
 }

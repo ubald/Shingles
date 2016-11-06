@@ -22,7 +22,7 @@ public:
     void updateProbabilities();
     std::vector<const std::string> nextCandidateWords(std::string seed = "") const;
     std::string nextMostProbableWord(std::string seed = "") const;
-    std::string generate(std::string seed = "") const;
+    std::string generate(std::string topic = "", std::string seed = "") const;
     void open(const std::string &path);
     void save(const std::string &path) const;
     std::string toString() const;

@@ -132,6 +132,8 @@ int main(int argc, char *argv[]) {
     }
 
     if (options[INTERACTIVE]) {
+        std::cout << "User :h or :help to see a list of commands." << std::endl;
+
         char *line;
         linenoiseHistorySetMaxLen(32);
         linenoiseSetHintsCallback(hints);
@@ -146,7 +148,21 @@ int main(int argc, char *argv[]) {
                     const std::string arguments_str =
                             arguments.size() > 0 ? line_str.substr(command.size() + 2, std::string::npos) : "";
 
-                    if (command == "s" || command == "save") {
+                    if (command == "h" || command == "help") {
+                        std::cout << ":h, :help                          This command" << std::endl;
+                        std::cout << ":d, :debug                         Toggle (extremely) verbose debug output" << std::endl;
+                        std::cout << ":s <filename>, :save <filename>    Save the dictionary file" << std::endl;
+                        std::cout << ":o <filename>, :open <filename>    Open a dictionary file" << std::endl;
+                        std::cout << ":i <filename>, :ingest <filename>  Ingest/learn a text file" << std::endl;
+                        std::cout << std::endl;
+                        std::cout << ">        Seed the sentence generation with text entered after the >" << std::endl;
+                        std::cout << "<enter>  Generate a new sentence" << std::endl;
+                        std::cout << "<tab>    Autocomplete" << std::endl;
+                        std::cout << std::endl;
+                        std::cout << "Otherwise, type some text then press <enter> to ingest/learn that text before generating a new sentence" << std::endl;
+                        std::cout << std::endl;
+
+                    } else if (command == "s" || command == "save") {
                         if (arguments.size() == 1) {
                             dictionary->save(arguments[0]);
                         } else {
@@ -173,7 +189,7 @@ int main(int argc, char *argv[]) {
                     std::cerr << "Please enter a command" << std::endl;
                 }
             } else if (line_str[0] == '>') {
-                std::string wisdom = dictionary->generate(line_str.substr(1, std::string::npos));
+                std::string wisdom = dictionary->generate("", line_str.substr(1, std::string::npos));
                 std::cout << Color::FG_MAGENTA << "shingles"
                           << Color::FG_DARK_GRAY << ": "
                           << Color::FG_DEFAULT
@@ -184,7 +200,7 @@ int main(int argc, char *argv[]) {
                 if (line_str.size() > 0) {
                     dictionary->input(line_str);
                 }
-                std::string wisdom = dictionary->generate();
+                std::string wisdom = dictionary->generate(line_str);
                 std::cout<< Color::FG_MAGENTA << "shingles"
                          << Color::FG_DARK_GRAY << ": "
                          << Color::FG_DEFAULT
