@@ -43,7 +43,7 @@ void Dictionary::ingestFile(const std::string &filePath) {
     std::cout << "Loading text from " << filePath << " ..." << std::endl;
 
     std::string text;
-
+    int lines = 0;
     {
         std::ifstream file(filePath, std::ios::binary);
         if (!file) {
@@ -54,6 +54,12 @@ void Dictionary::ingestFile(const std::string &filePath) {
                 std::string line;
                 std::getline(file, line);
                 text += line + "\n";
+
+                ++lines;
+                if (lines >= 10000) {
+                    text += "\n";
+                    lines = 0;
+                }
             }
         }
     }

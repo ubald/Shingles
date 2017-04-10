@@ -38,7 +38,17 @@ void Parser::parse(const std::string text, std::function<void(std::vector<std::s
         for (auto &fut:pool) {
             if (fut.valid()) {
                 auto w = fut.get();
+
+                if (debug) {
+                    std::cout << "    Future " << processedChunks + 1 << " of " << numChunks << " done, ingesting... ";
+                }
+
                 callback(w);
+
+                if (debug) {
+                    std::cout << "Done!" << std::endl;
+                }
+
                 //words.insert( words.end(), w.begin(), w.end() );
                 ++processedChunks;
             }
