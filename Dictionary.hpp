@@ -7,6 +7,7 @@
 #include <vector>
 #include <iostream>
 #include <map>
+#include <unordered_map>
 #include <random>
 #include <stack>
 #include "utils/split.hpp"
@@ -14,11 +15,11 @@
 
 class Dictionary {
 public:
-    Dictionary(unsigned long n = 3);
-    void ingestFile(const std::string& filePath);
+    explicit Dictionary(unsigned long n = 3);
+    void ingestFile(const std::string &filePath);
     void input(const std::string &text);
     void ingest(std::vector<std::string> &words, bool doUpdateProbabilities = false);
-    void ingestSentence(std::vector<Word*> &sentenceWords, bool doUpdateProbabilities = false);
+    void ingestSentence(std::vector<Word *> &sentenceWords, bool doUpdateProbabilities = false);
     void updateProbabilities();
     std::vector<const std::string> nextCandidateWords(std::string seed = "") const;
     std::string nextMostProbableWord(std::string seed = "") const;
@@ -30,12 +31,12 @@ public:
     void setDebug(bool debug);
 
 private:
-    bool debug_{false};
-    unsigned long n;
+    bool          debug_{false};
+    unsigned long n{2};
     unsigned long idCounter{5}; // 0-5 reserved for begin & end words
-    Word* beginSentence{nullptr};
-    Word* endSentence{nullptr};
-    std::map<std::string, std::unique_ptr<Word>> wordMap{};
+    Word *beginSentence{nullptr};
+    Word *endSentence{nullptr};
+    std::unordered_map<std::string, std::unique_ptr<Word>> wordMap{};
 };
 
 

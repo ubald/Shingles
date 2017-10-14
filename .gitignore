@@ -4,3 +4,4 @@ output.txt
 .idea/workspace.xml
 books/
 build/
+.DS_Store

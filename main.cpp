@@ -1,5 +1,6 @@
 #include <fstream>
 #include <vector>
+#include <chrono>
 #include "optionparser.h"
 #include "linenoise.h"
 #include "utils/split.hpp"
@@ -138,7 +139,7 @@ int main(int argc, char *argv[]) {
         linenoiseHistorySetMaxLen(32);
         linenoiseSetHintsCallback(hints);
         linenoiseSetCompletionCallback(completion);
-        while ((line = linenoise("human: ")) != NULL) {
+        while ((line = linenoise("human: ")) != nullptr) {
             const std::string line_str = std::string(line);
             if (line_str[0] == ':') {
                 std::vector<std::string> input = split(line_str.substr(1, std::string::npos), ' ');

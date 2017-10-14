@@ -2,9 +2,8 @@
 #include "Word.hpp"
 #include "utils/color.hpp"
 
-Gram::Gram(const Word *word, unsigned int depth) : word(word), depth(depth) {
-
-}
+Gram::Gram(const Word *word, unsigned int depth) :
+    word(word), depth(depth) {}
 
 const Word *Gram::getWord() const {
     return word;
@@ -20,9 +19,8 @@ const double Gram::getProbability() const {
 
 const std::string Gram::toString() const {
     std::stringstream ss;
-    ss << std::string(depth * 4, ' ') << word->getId() << ":" << word->getOutputText() << " (" << count << "-"
-       << probability << ")" << std::endl;
-    for (auto &gram:grams) {
+    ss << std::string(depth * 4, ' ') << word->getId() << ":" << word->getOutputText() << " (" << count << "-" << probability << ")" << std::endl;
+    for (const auto &gram:grams) {
         ss << gram.second->toString();
     }
     return ss.str();
@@ -30,7 +28,7 @@ const std::string Gram::toString() const {
 
 const Json::Value Gram::toJson() const {
     Json::Value gramJson;
-    gramJson["word"] = static_cast<Json::UInt64>(word->getId());
+    gramJson["word"]  = static_cast<Json::UInt64>(word->getId());
     gramJson["count"] = static_cast<Json::UInt64>(count);
     gramJson["grams"] = Json::Value(Json::arrayValue);
     for (auto &gram:grams) {
@@ -39,31 +37,34 @@ const Json::Value Gram::toJson() const {
     return gramJson;
 }
 
-void Gram::fromJson(const Json::Value gram_json, std::map<unsigned long, std::unique_ptr<Word>> &wordsById) {
+void Gram::fromJson(const Json::Value &gram_json, std::unordered_map<unsigned long, std::unique_ptr<Word>> &wordsById) {
     const Json::Value word_json = gram_json["word"];
-    if (word_json == Json::nullValue) {
+    if (word_json.empty()) {
         std::cerr << "Missing gram word" << std::endl;
         throw;
     }
+
     unsigned long wordId = word_json.asUInt64();
     word = wordsById[wordId].get();
 
     const Json::Value count_json = gram_json["count"];
-    if (count_json == Json::nullValue) {
+    if (count_json.empty()) {
         std::cerr << "Missing gram count" << std::endl;
         throw;
     }
+
     count = count_json.asUInt64();
 
     const Json::Value grams_json = gram_json["grams"];
-    if (grams_json == Json::nullValue || grams_json.type() != Json::arrayValue) {
+    if (grams_json.empty() || grams_json.type() != Json::arrayValue) {
         std::cerr << "Missing gram grams" << std::endl;
         throw;
     }
-    for (int i = 0; i < grams_json.size(); ++i) {
+
+    for (const auto &i : grams_json) {
         std::unique_ptr<Gram> gram(new Gram()); // *new* because of private constructor
         gram->depth = depth + 1;
-        gram->fromJson(grams_json[i], wordsById);
+        gram->fromJson(i, wordsById);
         grams[gram->word->getId()] = std::move(gram);
     }
 };
@@ -76,7 +77,7 @@ void Gram::update(const std::vector<Word *> &sentence, unsigned long position, u
     position++;
     if (n > 1 && position < sentence.size()) {
         Gram *gram_ptr;
-        Word *word = sentence[position];
+        Word *word  = sentence[position];
         auto search = grams.find(word->getId());
         if (search == grams.end()) {
             std::unique_ptr<Gram> gram = std::make_unique<Gram>(word, depth + 1);
@@ -93,10 +94,12 @@ void Gram::computeProbability(unsigned long total) {
     probability = (double) count / (double) total;
 
     unsigned long count = 0;
-    for (auto &gram:grams) {
+
+    for (const auto &gram:grams) {
         count += gram.second->count;
     }
-    for (auto &gram:grams) {
+
+    for (const auto &gram:grams) {
         gram.second->computeProbability(count);
     }
 }
@@ -110,12 +113,15 @@ std::vector<const Gram *> Gram::candidates(const std::vector<const Word *> &sent
             candidates = search->second->candidates(sentence, position + 1);
         }
     } else {
-        for (auto &g:grams) {
+        for (const auto &g:grams) {
             candidates.push_back(g.second.get());
         }
-        std::sort(candidates.begin(), candidates.end(), [](const Gram *a, const Gram *b) {
-            return a->probability > b->probability;
-        });
+        std::sort(
+            candidates.begin(), candidates.end(),
+            [](const Gram *a, const Gram *b) {
+                return a->probability > b->probability;
+            }
+        );
     }
 
     return candidates;
@@ -131,7 +137,7 @@ const Gram *Gram::mostProbable(const std::vector<const Word *> &sentence, unsign
             g = search->second->mostProbable(sentence, position + 1);
         }
     } else {
-        for (auto &gram:grams) {
+        for (const auto &gram:grams) {
             if (gram.second->word->isMarker()) {
                 continue;
             }
@@ -147,9 +153,11 @@ const Gram *Gram::mostProbable(const std::vector<const Word *> &sentence, unsign
     return g;
 }
 
-const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long position,
-                       const std::stack<const Word *> &markerStack, const std::vector<const Word *> topic,
-                       bool finishSentence, bool debug) const {
+const Gram *Gram::next(
+    const std::vector<const Word *> &sentence, unsigned long position,
+    const std::stack<const Word *> &markerStack, std::vector<const Word *> topic,
+    bool finishSentence, bool debug
+) const {
 
     const Gram *nextGram = nullptr;
 
@@ -173,7 +181,7 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
         if (debug) {
             std::cout << std::string(depth + 6, ' ') << "Gram " << Color::FG_CYAN << word->getInputText()
                       << Color::FG_DEFAULT << " attempting to find a word from:" << std::endl;
-            for (auto &gram:grams) {
+            for (const auto &gram:grams) {
                 std::cout << std::string(depth + 7, ' ') << Color::FG_YELLOW
                           << std::to_string(gram.second->probability) << Color::FG_DEFAULT << "\t"
                           << Color::FG_LIGHT_GRAY << gram.second->word->getInputText() << Color::FG_DEFAULT
@@ -190,11 +198,11 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
                           << Color::FG_DEFAULT << std::endl;
             }
 
-            for (auto &gram:grams) {
+            for (const auto &gram:grams) {
                 if (gram.first == markerStack.top()->getEndMarker()->getId()) {
                     if (debug) {
                         std::cout << std::string(depth + 7, ' ') << "Found closing marker "
-                                  << gram.second.get()->word->getInputText() << ", use that instead" << std::endl;
+                                  << gram.second->word->getInputText() << ", use that instead" << std::endl;
                     }
 
                     return gram.second.get();
@@ -203,14 +211,16 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
         }
 
         double remainingProbability = 1.0;
-        std::map<unsigned long, const Gram *> skippedGrams{};
+
+        std::unordered_map<unsigned long, const Gram *> skippedGrams{};
 
         // Try to match the topic
-        std::vector<const Gram*> topicGrams;
-        for (auto w:topic) {
+        std::vector<const Gram *> topicGrams;
+
+        for (const auto &w:topic) {
             auto search = grams.find(w->getId());
             if (search != grams.end()) {
-                const Gram* g = w->getGram();
+                const Gram *g = w->getGram();
                 topicGrams.push_back(g);
                 // Increment maximum probability since we are now adding duplicated to the lot
                 remainingProbability += g->probability;
@@ -218,9 +228,9 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
         }
 
         if (debug) {
-            if (topicGrams.size() > 0) {
+            if (!topicGrams.empty()) {
                 std::cout << std::string(depth + 6, ' ') << "Topic-matching grams: " << Color::FG_DARK_GRAY;
-                for (auto &gram:topicGrams) {
+                for (const auto &gram:topicGrams) {
                     std::cout << gram->word->getInputText() << " ";
                 }
                 std::cout << Color::FG_DEFAULT << std::endl;
@@ -231,14 +241,14 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
 
         bool giveUp = false;
         do {
-            std::random_device rd;
-            std::mt19937 gen(rd());
+            std::random_device                     rd;
+            std::mt19937                           gen(rd());
             std::uniform_real_distribution<double> dis(0, remainingProbability);
-            double rnd = dis(gen);
-            double probabilities = 0;
+            double                                 rnd           = dis(gen);
+            double                                 probabilities = 0;
 
             // Give more probability to topic grams
-            for (auto &gram:topicGrams) {
+            for (const auto &gram:topicGrams) {
                 double probability = gram->probability;
                 if (probabilities < rnd && rnd <= (probabilities + probability)) {
                     nextGram = gram;
@@ -254,8 +264,8 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
             }
 
             // Do regular grams if no topic gram found
-            if ( nextGram == nullptr) {
-                for (auto &gram:grams) {
+            if (nextGram == nullptr) {
+                for (const auto &gram:grams) {
                     double probability = gram.second->probability;
                     if (probabilities < rnd && rnd <= (probabilities + probability)) {
                         auto search = skippedGrams.find(gram.first);
@@ -289,7 +299,7 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
 
                     skippedGrams[nextGram->word->getId()] = nextGram;
                     remainingProbability -= nextGram->probability;
-                    nextGram = nullptr;
+                    nextGram                              = nullptr;
 
                 } else if (nextGram->word->isBeginMarker() && nextGram->word->getId() == markerStack.top()->getId()) {
                     if (debug) {
@@ -299,10 +309,9 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
 
                     skippedGrams[nextGram->word->getId()] = nextGram;
                     remainingProbability -= nextGram->probability;
-                    nextGram = nullptr;
+                    nextGram                              = nullptr;
 
-                } else if (nextGram->word->isEndMarker() &&
-                           nextGram->word->getBeginMarker()->getId() != markerStack.top()->getId()) {
+                } else if (nextGram->word->isEndMarker() && nextGram->word->getBeginMarker()->getId() != markerStack.top()->getId()) {
                     if (debug) {
                         std::cout << std::string(depth + 6, ' ') << Color::FG_RED
                                   << "Can't close unstacked marker: "
@@ -311,7 +320,7 @@ const Gram *Gram::next(const std::vector<const Word *> &sentence, unsigned long 
 
                     skippedGrams[nextGram->word->getId()] = nextGram;
                     remainingProbability -= nextGram->probability;
-                    nextGram = nullptr;
+                    nextGram                              = nullptr;
                 }
             }
 

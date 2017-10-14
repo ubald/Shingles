@@ -4,31 +4,29 @@
 #include "utils/split.hpp"
 #include "Parser.hpp"
 
-void Parser::parse(const std::string text, std::function<void(std::vector<std::string> &)> callback, std::function<void(void)> done, bool debug) {
-    /*std::vector<std::string> chunk = Parser::parseChunk(text);
-    callback(chunk);
-    done();
-    return;*/
-    std::string textBuffer = text;
+void Parser::parse(const std::string &text, std::function<void(std::vector<std::string> &)> callback, std::function<void(void)> done, bool debug) {
     std::vector<std::future<std::vector<std::string>>> pool{};
 
     // Splitting text for parsing
     if (debug) {
         std::cout << "Splitting text into chunks..." << std::endl;
     }
-    std::regex re("[\n]{2,}"); // Two or more line returns should not split sentences ;)
-    std::sregex_token_iterator first{textBuffer.begin(), textBuffer.end(), re, -1};
+    std::regex                 re("[\n]{2,}"); // Two or more line returns should not split sentences ;)
+    std::sregex_token_iterator first{text.cbegin(), text.cend(), re, -1};
     std::sregex_token_iterator last;
-    std::vector<std::string> chunks{first, last};
-    unsigned long numChunks = chunks.size();
+    std::vector<std::string>   chunks{first, last};
+    unsigned long              numChunks = chunks.size();
 
     if (debug) {
         std::cout << "Threading " << numChunks << " chunk parsers..." << std::endl;
     }
+
     unsigned long processedChunks = 0;
+
     for (auto &chunk:chunks) {
-        auto handle = std::async(std::launch::async, parseChunk, chunk, false);
-        pool.push_back(std::move(handle));
+        pool.push_back(std::async(std::launch::async, parseChunk, chunk, false));
+        //std::vector<std::string> result = parseChunk(chunk, false);
+        //callback(result);
     }
 
     if (debug) {
@@ -61,11 +59,11 @@ void Parser::parse(const std::string text, std::function<void(std::vector<std::s
     done();
 }
 
-void saveIntermediate(std::string name, std::string buff) {
-    std::string file = "output-" + name + ".txt";
-    std::ofstream output(file.c_str());
-    output << buff << "\n";
-}
+//void saveIntermediate(std::string name, std::string buff) {
+//    std::string   file = "output-" + name + ".txt";
+//    std::ofstream output(file.c_str());
+//    output << buff << "\n";
+//}
 
 std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) {
 
@@ -73,6 +71,7 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
     if (debug) {
         std::cout << "Removing crap..." << std::endl;
     }
+
     textBuffer = std::regex_replace(textBuffer, std::regex("[\\x00-\\x1F_]"), "  ");
     textBuffer = std::regex_replace(textBuffer, std::regex("-{2,}"), "  ");
     textBuffer = std::regex_replace(textBuffer, std::regex("http[s]?:\\/\\/(?:.+?) "), " ");
@@ -81,6 +80,7 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
     if (debug) {
         std::cout << "Separating punctuation..." << std::endl;
     }
+
     textBuffer = std::regex_replace(textBuffer, std::regex("\\.\\.\\."), " … "); // elipsis
     textBuffer = std::regex_replace(textBuffer, std::regex("([\\.\\,\\:\\;\\!\\?\\(\\)\"“”«»])"), " $1 ");
 
@@ -88,6 +88,7 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
     if (debug) {
         std::cout << "Removing marker-like structures..." << std::endl;
     }
+
     textBuffer = std::regex_replace(textBuffer, std::regex("<(.+?)>"), "($1)");
     textBuffer = std::regex_replace(textBuffer, std::regex("[<>]"), " ");
 
@@ -95,15 +96,16 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
     if (debug) {
         std::cout << "Extracting quotes..." << std::endl;
     }
+
     std::vector<std::pair<std::string, std::string>> quoteMarkerPairs{
         std::make_pair("\"", "\""),
         std::make_pair("“", "”"),
         std::make_pair("‘", "’"),
         std::make_pair("«", "»")
     };
+
     for (auto marker : quoteMarkerPairs) {
-        textBuffer = std::regex_replace(textBuffer, std::regex(marker.first + "(.+?)" + marker.second),
-                                        " <q> $1 </q> ");
+        textBuffer = std::regex_replace(textBuffer, std::regex(marker.first + "(.+?)" + marker.second), " <q> $1 </q> ");
     }
 
     // Special case with spaces not to catch real apostrophes
@@ -118,34 +120,41 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
     if (debug) {
         std::cout << "Extracting parens..." << std::endl;
     }
+
     std::vector<std::pair<std::string, std::string>> parensMarkerPairs{
         std::make_pair("\\(", "\\)"),
         std::make_pair("\\[", "\\]"),
         std::make_pair("\\{", "\\}")
     };
+
     for (auto marker : parensMarkerPairs) {
-        textBuffer = std::regex_replace(textBuffer, std::regex(marker.first + "(.+?)" + marker.second),
-                                        " <p> $1 </p> ");
+        textBuffer = std::regex_replace(textBuffer, std::regex(marker.first + "(.+?)" + marker.second), " <p> $1 </p> ");
     }
 
     // Remove stray markers
     if (debug) {
         std::cout << "Removing stray markers..." << std::endl;
     }
+
     std::string strayMarkers = "";
+
     for (auto marker : quoteMarkerPairs) {
         strayMarkers += marker.first + marker.second;
     }
+
     for (auto marker : parensMarkerPairs) {
         strayMarkers += marker.first + marker.second;
     }
+
     textBuffer = std::regex_replace(textBuffer, std::regex("[" + strayMarkers + "]"), " ");
 
     // Remove double spaces
     if (debug) {
         std::cout << "Removing double spaces..." << std::endl;
     }
+
     std::regex doubleSpace_re("  ");
+
     while (textBuffer.find("  ") != std::string::npos) {
         textBuffer = std::regex_replace(textBuffer, doubleSpace_re, " ");
     }
@@ -154,13 +163,15 @@ std::vector<std::string> Parser::parseChunk(std::string textBuffer, bool debug) 
     if (debug) {
         std::cout << "Lowercasing..." << std::endl;
     }
+
     std::transform(textBuffer.begin(), textBuffer.end(), textBuffer.begin(), ::tolower);
 
     if (debug) {
         std::cout << "Vectorizing..." << std::endl;
     }
+
     std::vector<std::string> words{};
-    std::stringstream ss;
+    std::stringstream        ss;
     ss.str(textBuffer);
     std::string word;
     while (std::getline(ss, word, ' ')) {

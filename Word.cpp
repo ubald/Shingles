@@ -1,14 +1,17 @@
 #include <iostream>
+#include <utility>
 #include "Word.hpp"
 
-Word::Word(unsigned long id, const std::string text) : id(id), inputText(text), outputText(text), gram(this) {
+Word::Word(unsigned long id, std::string text) :
+    id(id), inputText(text), outputText(text), gram(this) {
 
 }
 
-Word::Word(unsigned long id, const std::string inputText, const std::string outputText) : id(id),
-                                                                                          inputText(inputText),
-                                                                                          outputText(outputText),
-                                                                                          gram(this) {
+Word::Word(unsigned long id, std::string inputText, std::string outputText) :
+    id(id),
+    inputText(std::move(inputText)),
+    outputText(std::move(outputText)),
+    gram(this) {
 
 }
 
@@ -33,7 +36,7 @@ const Word *Word::getBeginMarker() const {
 }
 
 void Word::setAsBeginMarker(const Word *end) {
-    endMarker = end;
+    endMarker   = end;
     beginMarker = nullptr;
 }
 
@@ -43,7 +46,7 @@ const Word *Word::getEndMarker() const {
 
 void Word::setAsEndMarker(const Word *begin) {
     beginMarker = begin;
-    endMarker = nullptr;
+    endMarker   = nullptr;
 }
 
 const std::string Word::getInputText() const {
@@ -66,16 +69,16 @@ const std::string Word::toString() const {
 
 const Json::Value Word::toJson() const {
     Json::Value wordJson;
-    wordJson["id"] = static_cast<Json::UInt64>(id);
-    wordJson["input"] = inputText;
+    wordJson["id"]     = static_cast<Json::UInt64>(id);
+    wordJson["input"]  = inputText;
     wordJson["output"] = outputText;
-    wordJson["gram"] = gram.toJson();
+    wordJson["gram"]   = gram.toJson();
     return wordJson;
 }
 
-void Word::fromJson(const Json::Value word_json, std::map<unsigned long, std::unique_ptr<Word>> &wordsById) {
+void Word::fromJson(const Json::Value &word_json, std::unordered_map<unsigned long, std::unique_ptr<Word>> &wordsById) {
     const Json::Value gram_json = word_json["gram"];
-    if (gram_json == Json::nullValue) {
+    if (gram_json.empty()) {
         std::cerr << "Missing word gram" << std::endl;
         throw;
     }
@@ -86,19 +89,19 @@ void Word::fromJson(const Json::Value word_json, std::map<unsigned long, std::un
  * @static
  * @return
  */
-std::unique_ptr<Word> Word::fromJson(const Json::Value word_json) {
+std::unique_ptr<Word> Word::fromJson(const Json::Value &word_json) {
     const Json::Value id_json = word_json["id"];
-    if (id_json == Json::nullValue) {
+    if (id_json.empty()) {
         std::cerr << "Missing word id" << std::endl;
         throw;
     }
     const Json::Value inputText_json = word_json["input"];
-    if (inputText_json == Json::nullValue) {
+    if (inputText_json.empty()) {
         std::cerr << "Missing word inputText" << std::endl;
         throw;
     }
     const Json::Value outputText_json = word_json["output"];
-    if (outputText_json == Json::nullValue) {
+    if (outputText_json.empty()) {
         std::cerr << "Missing word outputText" << std::endl;
         throw;
     }
@@ -116,10 +119,12 @@ void Word::updateProbabilities(unsigned long wordCount) {
 
 std::vector<const Word *> Word::candidates(const std::vector<const Word *> &sentence, unsigned long position) const {
     std::vector<const Gram *> gramCandidates = gram.candidates(sentence, position);
-    std::vector<const Word *> wordCandidates{};
-    for (auto g:gramCandidates) {
+    std::vector<const Word *> wordCandidates{gramCandidates.size()};
+
+    for (const auto &g:gramCandidates) {
         wordCandidates.push_back(g->getWord());
     }
+
     return wordCandidates;
 }
 
@@ -128,15 +133,19 @@ const Word *Word::mostProbable(const std::vector<const Word *> &sentence, unsign
     return g ? g->getWord() : nullptr;
 }
 
-const Word *Word::nextWord(const std::vector<const Word *> &sentence, unsigned long position,
-                           const std::stack<const Word *> &markerStack, const std::vector<const Word *> topic,
-                           bool finishSentence, bool debug) const {
+const Word *Word::nextWord(
+    const std::vector<const Word *> &sentence, unsigned long position,
+    const std::stack<const Word *> &markerStack, const std::vector<const Word *> topic,
+    bool finishSentence, bool debug
+) const {
     const Gram *g = gram.next(sentence, position, markerStack, topic, finishSentence, debug);
     return g ? g->getWord() : nullptr;
 }
 
-const Gram *Word::nextGram(const std::vector<const Word *> &sentence, unsigned long position,
-                           const std::stack<const Word *> &markerStack, const std::vector<const Word *> topic,
-                           bool finishSentence, bool debug) const {
+const Gram *Word::nextGram(
+    const std::vector<const Word *> &sentence, unsigned long position,
+    const std::stack<const Word *> &markerStack, const std::vector<const Word *> topic,
+    bool finishSentence, bool debug
+) const {
     return gram.next(sentence, position, markerStack, topic, finishSentence, debug);
 }
